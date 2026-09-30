@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "othello-learning"
+version = "0.1.0"
+description = "A personal Othello learning project"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+# Dataset conversion and training utilities only. The rules engine and bots
+# stay dependency-free, so the core project installs without this group.
+data = ["numpy"]
+training = ["numpy", "torch"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["rig", "rig.*", "bots", "bots.*", "training", "training.*"]

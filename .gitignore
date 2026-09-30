@@ -1,0 +1,35 @@
+# Local Python environments
+/venv/
+/.venv/
+
+# Python bytecode and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Generated Python packaging metadata and distributions
+*.egg
+*.egg-info/
+*.dist-info/
+.eggs/
+build/
+dist/
+
+# Disposable work and retained generated experiment artifacts
+/work/
+/runs/
+/checkpoints/
+
+# Generated data, model exports and runtime logs elsewhere in the tree
+*.npz
+*.npy
+*.pt
+*.pth
+*.onnx
+*.jsonl
+*.log
