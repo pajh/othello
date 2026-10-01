@@ -113,3 +113,29 @@ Permanent chronological record. Raw logs belong in run artifacts; keep this hist
 - I007 source-review finding: parallel initializer required optional torch for random-only core use. Bunny corrected to inspect loaded torch after bot imports; reports random/max initializer and torch-importing stub checks passed. No real pool, NN game or hosted runtime. T043 helper --workers delivered; T044 manual GitHub collection workflow dispatched separately.
 
 - T044 infrastructure delivered: workflow_dispatch-only hosted collection, CPU dependencies, runtime provenance, artifact upload and summary; README launch/download instructions. Bunny reports YAML structure, extracted shell syntax and Python compilation checks passed; no remote job or parallel games run. Not committed/pushed. Hosted conversion and continued training remain outside this task.
+
+- User authorized commit/push: 1e6e72f published to origin/master, including baseline model copy and manual workflow. No hosted dispatch or multi-core game runtime; these remain unproven and deferred until after second training. T041a weights-only initialization support dispatched to Bunny; conversion and training still unrun.
+
+- User-run conversion completed: 5,000 eligible games (no forfeits skipped), seed12345 default80/20 whole-game split; training4,000games/241,396positions, validation1,000games/60,425positions, total301,821positions. Archives and conversion-summary.txt retained under runs/selfplay-5000/run-9ad69fb4e22d413c8905b2e392c33b36/dataset/. Counts are from user CLI output, no additional array checks run. Second training still unrun.
+
+- T041a continuation infrastructure delivered: parent model weights loaded with CPU weights_only/strict state loading before starting losses, fresh Adam and reset epoch/early-stop state; initialization provenance in candidate checkpoints/history/report. Bunny reports synthetic load and rejection checks, no real checkpoint or epoch execution. User-run second training pending.
+
+### Second training completion — 2026-10-01
+
+- User executed training.train on converted self-play dataset with --initial-checkpoint parent best.pt; fresh Adam, agreed defaults, CPU threads4/interop4. Candidate output checkpoints/second-model/run-selfplay-5000/.
+- Loaded-parent train/validationMSE0.202730/0.203582; constant validation baseline0.242034. Epoch1–4 training0.178482,0.163548,0.152865,0.143331; validation0.193218,0.197173,0.203736,0.209542. Four completed epochs, patience stop, best epoch1, total7.5s.
+- Candidate best validation is ~5.1% lower than loaded parent on THIS same validation split. Later train/validation divergence suggests overfitting; this does not establish insufficient model capacity or improved playing strength. best.pt/last.pt/history/summary retained; parent preserved. Luna saved-report summary requested, no extra job run. Multi-core and GitHub proving runs still unperformed.
+
+- User chose100candidate-vs-random and100candidate-vs-parent games, alternating colours and unchanged exploration settings. Candidate wrapper/shared selected model plumbing dispatched; no evaluation run yet.
+
+### Candidate versus random — 2026-10-01
+
+- User ran100games, seed91001, workers1, alternating colours. Throwaway candidate clone loads checkpoints/second-model/run-selfplay-5000/best.pt; unchanged NN-004-R2-T0.05 code/settings vs RAND-001. Code ID alone does not distinguish candidate weights; candidate module/checkpoint selection do.
+- User CLI result:100normal,0forfeits,86candidate wins/5draws/9random wins (88.5% draw-adjusted score). Raw run runs/candidate-vs-random/run-0b05370177d245488ecbe22d77a6e309, fixed summary in output root.
+- Original parent comparison78/3/19 used an earlier greedy bot and different seed; this is encouraging but not a controlled causal strength comparison. Parent/candidate head-to-head100 remains agreed and unrun. No extra games/checks by agents.
+
+### Candidate versus parent — 2026-10-01
+
+- User ran agreed100head-to-head games at seed91002, workers1, alternating colours. Candidate bots.nn_candidate_bot hardcodes second-model/run-selfplay-5000/best.pt; parent bots.nn_bot explicitly selects first-model/run-2103bc51994e46a099f8b3d78618efd3/best.pt through OTHELLO_NN_CHECKPOINT. Both NN-004-R2-T0.05 settings; copied code ID does not distinguish weights.
+- User CLI result:100normal,0forfeits,62candidate wins/6draws/32parent wins, draw-adjusted score65%. Raw run runs/candidate-vs-parent/run-d97a51b8005a43f3bf3f8df5a1648a69; fixed root run-summary.txt. No independent replay or additional matches.
+- Alongside candidate/random86/5/9 and same-split validation improvement, this batch supports improvement after first self-play continuation. It does not establish a plateau, repeated-seed robustness or maximal strength. Both agreed100-game evaluations completed. Further training/experiments are user decisions; local multi-core and hosted proving runs still unperformed.

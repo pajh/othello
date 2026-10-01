@@ -88,3 +88,17 @@ T009, T043 and I007 correction delivered; no parallel game runtime yet. T044 man
 ## User priority update — 2026-10-01
 
 User authorized committing/pushing all prepared work. After push, priority is conversion of the completed 5,000-game collection and continued training from parent weights with a new Adam optimizer. Prepare trainer support via Bunny and concise user-run commands via Luna; user monitors conversion/training. Circle back to local multi-core and GitHub proving runs only after training. Multi-core and hosted runtime are still unproven.
+
+- Push completed: origin/master 1e6e72f includes prepared source/workflow/docs and models/first-model.pt. No hosted run. Bunny now receives trainer --initial-checkpoint task; Luna prepares conversion command for retained run. Both conversion and second training still unrun.
+
+## Second training complete — 2026-10-01
+
+User completed continuation weights/new Adam on selfplay5000 dataset. Candidate checkpoints/second-model/run-selfplay-5000/best.pt, best epoch1 validationMSE0.193218 vs loaded-parent0.203582 on same split. Four epochs, patience stop, total7.5s. No strength result yet; choose evaluation next. Multi-core/hosted proving runs remain unproven. Trainer/records changes after 1e6e72f are not yet pushed.
+
+## Candidate evaluations complete — 2026-10-01
+
+User ran candidate/random100 at86/5/9 (seed91001), then candidate/parent100 at62/6/32 (seed91002), alternating colours, workers1, no forfeits. Candidate65% score vs parent supports improvement in this batch. Parent/candidate have same NN-004 code ID but different module/checkpoint selectors; disposable clone uses hardcoded local candidate path. No plateau conclusion or automatic promotion. Local multi-core and GitHub proving runs remain next previously agreed work and unrun.
+
+## Next collection selected — 2026-10-01
+
+User authorized committing current changes, then user-run5,000games with4workers. Prepared command uses canonical nn_bot on both seats, candidate checkpoints/second-model/run-selfplay-5000/best.pt, fresh seed90002, output runs/selfplay-5000-second/. Fresh data can feed another training round if results look good; no job started or further training launched. Timing comparison against previous914.067s is practical rather than controlled because checkpoint and game traces change. Allocate next generation when this collection actually starts.

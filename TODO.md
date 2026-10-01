@@ -20,7 +20,7 @@
 - [ ] T011 — single-game HTML report.
 - [x] T040 — Luna prepared scripts/nn_selfplay_collect.py and docs/nn-selfplay-collection-handoff.md. User completed 5,000 normal games, zero forfeits; results summary requested from Luna.
 - [ ] T041 — Convert new collection with whole-game 80/20 split, then second training batch in a fresh checkpoint directory. User selected continuing the existing best model weights on 2026-10-01; current trainer supports fresh initialization only, so a bounded Bunny change is needed first. User selected a new Adam optimizer; load model weights only. User executes, Luna reviews.
-- [ ] T042 — Evaluate candidate separately; parent-versus-child checkpoint selection in one process is not currently supported. User chooses evaluation/design scope.
+- [ ] T042 — user selected candidate versus random100 and candidate versus parent100, alternating colours. User superseded wrapper design with disposable hardcoded candidate clone; Bunny replacement task dispatched; Luna prepares launch commands afterward. User runs/monitors, no games by agents.
 - [x] T043 — collection helper --workers pass-through and metadata execution fields delivered; static checks reported passed, no parallel collection run.
 - [x] T044 — manual four-worker GitHub Actions collection workflow and README instructions delivered. Bunny reports YAML/shell/static checks passed. No hosted runtime, commit or push yet.
 - Outcome asymmetry across three exploratory seeds remains unexplained despite no obvious source bug; the milestone smoke passed but no conclusive bias diagnosis was performed. Further investigation is a user decision.
@@ -36,6 +36,22 @@ I001–I006 are resolved. They covered an invalid EMPTY forfeit actor, incorrect
 
 ## Current priority — 2026-10-01
 
-1. User-authorized commit/push of prepared work including model copy.
+1. Completed: prepared work and model pushed as 1e6e72f.
 2. T041: prepare continuation support, then user-run conversion and second training on the completed 5,000-game collection (parent weights, new Adam).
 3. After training, user-run local multi-core and GitHub proving runs. These runtimes remain unproven.
+
+- T041a dispatched: --initial-checkpoint model-weights initialization with new Adam; no training/epochs by Bunny. Luna prepares concise conversion commands, no extra helper.
+
+- T041 conversion completed by user: 4,000/1,000 games and 241,396/60,425 rows. Continued training remains pending trainer handoff and user launch.
+
+- [x] T041a — trainer --initial-checkpoint weights-only initialization delivered; Bunny reports synthetic load/fresh-optimizer checks passed. Real parent checkpoint and training runtime still unrun. User launch command preparation is next.
+
+- [x] T041 — user conversion and second training completed: parent weights/new Adam, best epoch1 at validationMSE0.193218, candidate checkpoints/second-model/run-selfplay-5000/best.pt. T042 playing-strength evaluation next decision; multi-core/GitHub proving runs remain deferred/unproven.
+
+- T042a replacement completed directly per user: disposable nn_candidate_bot.py is canonical committed clone plus one hardcoded-checkpoint line. Parent unchanged, candidate shares NN-004 code ID; reports must distinguish checkpoint paths. No evaluation matches yet.
+
+- T042 first match complete: candidate/random100 at86/5/9. Agreed parent/candidate100 remains to run.
+
+- [x] T042 — user completed both100-game evaluations: candidate/random86/5/9; candidate/parent62/6/32. No additional matches or promotion agreed. Next previously agreed work: local multi-core and GitHub proving runs, still unrun.
+
+- [ ] T045 — user-run5,000 NN self-play games with workers4, second-model best.pt, seed90002, runs/selfplay-5000-second/. Compare actual timing to prior914.067s; next training conditional on satisfactory collection. No run by agents.

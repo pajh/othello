@@ -23,3 +23,23 @@ Updated: 2026-10-01.
 - T044 delivered: .github/workflows/selfplay.yml, manual collection on ubuntu-24.04 with four workers and models/first-model.pt, downloadable artifact and job summary. Bunny reports YAML/shell/static checks passed. Workflow/dependencies/pool/artifact upload remain unrun on GitHub; no commit/push. Next hosted step is user-authorized commit/push, then user-run dispatch with chosen seed/count.
 
 - Priority set by user: commit/push all prepared changes, then convert the retained 5,000-game collection and train from parent weights with fresh Adam. Local multi-core and hosted proving runs are deferred until after this training; both remain unproven.
+
+- Prepared work committed/pushed to origin/master as 1e6e72f on user instruction, including model copy. No hosted workflow dispatch or parallel games. Priority now T041: user-run conversion of retained self-play5000; Bunny weights-initialization trainer task dispatched before second training.
+
+- User completed Generation003 dataset conversion: 5,000 eligible games, zero skipped forfeits, seed12345 whole-game split 4,000 training games/241,396 positions and 1,000 validation games/60,425 positions. Dataset under runs/selfplay-5000/run-9ad69fb4e22d413c8905b2e392c33b36/dataset/. Second training remains unrun pending trainer handoff.
+
+- T041a delivered in training.train: --initial-checkpoint loads selected weights, resets Adam/epoch counters and records initialization provenance. Bunny reports syntax/help and synthetic loading checks passed; no actual parent load or training. Ready to prepare user-run command against converted selfplay5000 with new candidate output directory.
+
+- User completed second training at checkpoints/second-model/run-selfplay-5000: parent weights/new Adam, four epochs, best epoch1 validationMSE0.193218 vs loaded-parent0.203582 on the same split (~5.1% lower); constant baseline0.242034. Later validation rose while training fell; patience stopped after4epochs, total7.5s. Candidate best.pt retained; no playing-strength evaluation or multicore/hosted proving run. Luna saved-report summary requested.
+
+- User selected two evaluations: candidate vs random100 and candidate vs parent100, alternating colours. Minimal candidate bot wrapper/shared model dispatch task sent to Bunny; launch commands follow from Luna. No strength matches or local/hosted multicore proving run yet.
+
+- User simplified T042a to disposable canonical-bot clone with hardcoded candidate checkpoint. Prior shared-wrapper task interrupted after partial nn_bot edits; replacement task restores canonical and creates clone. No evaluation run.
+
+- User interrupted/rejected candidate coding process. Canonical nn_bot.py and collection helper match committed versions. Primary replaced candidate with a fresh copy of committed nn_bot.py and exactly one checkpoint-selection-line substitution: hardcoded local second-model best.pt with inline THROWAWAY marker. No games/tests/model load; candidate retains canonical NN-004 identity and unchanged settings. Completed trainer changes/artifacts preserved.
+
+- User-run candidate/random100 complete:86/5/9 W/D/L,100normal0forfeits, seed91001, workers1. Candidate best.pt via throwaway clone. Parent/candidate100 next, unrun; older78/3/19 had different seed and greedy settings.
+
+- Both agreed candidate evaluations complete: random86/5/9 at seed91001; parent62/6/32 at seed91002 (65% head-to-head score),100normal0forfeits each, alternating colours, workers1. Matching NN settings for parent comparison supports first self-play improvement in this batch, not a plateau claim. Candidate remains separate from parent; no automated promotion. Multi-core/hosted proving runs unperformed.
+
+- User authorized committing current training/evaluation work and selected next user-run5,000game collection on4workers to measure practical elapsed time versus prior914.067s. Command prepared using second-model best.pt in both canonical NN seats, fresh seed90002, output runs/selfplay-5000-second/. Next run has not started; potential further training depends on completed results. GitHub proving run remains unrun.

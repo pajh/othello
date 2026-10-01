@@ -1,20 +1,46 @@
-"""First CPU trainer for the fixed outcome model.
+"""CPU trainer for the fixed outcome model.
 
-Bounded by docs/first-trainer-task.md; architecture and settings come from
-docs/first-model-design.md, which the user accepted. This module reads the
-converter's NPZ splits, trains :class:`training.model.OutcomeMLP` on CPU
-and writes checkpoints, a history file and a fixed-name summary. It is
-deliberately a single ordinary script, not a framework: no registry, no
-resume command, no configuration file, no GPU or parallel data loading.
+Architecture and settings come from docs/first-model-design.md, which the user
+accepted; the original bounds are recorded in docs/first-trainer-task.md. This
+module reads the converter's NPZ splits, trains
+:class:`training.model.OutcomeMLP` on CPU and writes checkpoints, a history
+file and a fixed-name summary. It is deliberately a single ordinary script, not
+a framework: no registry, no resume command, no configuration file, no GPU or
+parallel data loading.
 
 Command line::
 
     python -m training.train --dataset-dir PATH --output-dir PATH \\
         [--epochs INT] [--batch-size INT] [--learning-rate FLOAT] \\
-        [--seed INT] [--patience INT]
+        [--seed INT] [--patience INT] [--initial-checkpoint PATH]
 
 Defaults: 30 epochs, batch 256, learning rate 0.001, seed 12345, patience
 3. ``--help`` prints and exits without reading data or creating output.
+
+Weight initialization
+---------------------
+Without ``--initial-checkpoint`` this is the original behaviour: the model is
+initialized from ``torch.manual_seed(seed)`` and the loss printed for epoch 0
+is labelled *untrained*.
+
+``--initial-checkpoint PATH`` starts from an existing checkpoint's **weights
+only**. The file is loaded on CPU with ``weights_only=True``, its checkpoint,
+model and encoding versions and its architecture string are checked against
+this trainer, and its ``model_state_dict`` is loaded strictly into
+:class:`OutcomeMLP` before the initial losses are evaluated. Nothing else is
+carried over: no optimizer state, no torch RNG state, no epoch number, no
+early-stopping counter and no previous best loss. The optimizer is a fresh
+``torch.optim.Adam`` over the current configuration, epoch numbering restarts
+at 1, and best/latest checkpoint selection and the fresh-output-directory rule
+behave exactly as before. The parent file is opened read-only and is never
+written.
+
+This continues *weights*, not a run. It cannot reproduce an interrupted run,
+and it makes no claim that a parent checkpoint's validation loss is comparable
+with this run's: the two usually describe different validation datasets. The
+loss reported for epoch 0 is labelled *loaded starting weights* so it is never
+read as an untrained result, and the loaded model's initial validation loss is
+reported so a later change on the same validation set can be assessed.
 
 The dataset directory must contain ``training.npz`` and ``validation.npz``
 with exactly the four arrays produced by the converter (encoding version 1,
@@ -40,7 +66,9 @@ Artifacts are ``best.pt``, ``last.pt``, ``training-history.json`` and
 ``training-summary.txt``; checkpoints are written through a temporary
 sibling and ``os.replace``, but the set of files is not published
 atomically. Checkpoints carry enough state to resume at an epoch boundary
-in a later task; no resume path exists here.
+in a later task; no resume path exists here. Initialization provenance is
+recorded separately from the configuration, so the ``config`` block of a
+fresh-initialized run is unchanged by this feature.
 
 Timings use ``time.perf_counter``. The load time covers dataset reading and
 validation only. An epoch's reported time covers shuffling, the update
@@ -84,6 +112,16 @@ LAST_NAME = 'last.pt'
 HISTORY_NAME = 'training-history.json'
 SUMMARY_NAME = 'training-summary.txt'
 ARRAY_NAMES = ('boards', 'outcomes', 'game_ids', 'plies')
+
+#: Labels for the losses measured before the first epoch. Which one is used
+#: says whether the reported starting point is an untrained model or one whose
+#: weights were loaded from a parent checkpoint.
+INITIAL_LABELS = {
+    'fresh': 'untrained',
+    'parent_weights': 'loaded starting weights',
+}
+FRESH_OPTIMIZER_NOTE = ('fresh Adam over the current settings; '
+                        'no parent optimizer state')
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -143,6 +181,13 @@ def _parse_args(argv):
     parser.add_argument('--patience', type=_positive_int, default=3, metavar='INT',
                         help='stop after this many epochs without a lower '
                              'validation loss (default: 3)')
+    parser.add_argument('--initial-checkpoint', type=Path, default=None,
+                        metavar='PATH',
+                        help='initialize the model from this checkpoint\'s '
+                             'weights only, with a fresh Adam and epoch '
+                             'numbering restarted at 1; the file is read, '
+                             'never written, and no optimizer or RNG state is '
+                             'carried over (default: fresh initialization)')
     return parser.parse_args(argv)
 
 
@@ -253,6 +298,84 @@ def constant_baseline_loss(training_targets, validation_targets):
     return float(((validation_targets - mean_target) ** 2).mean())
 
 
+def _require_version(checkpoint, field, expected, context):
+    """Require an exact integer checkpoint version field (bools rejected)."""
+    value = checkpoint.get(field)
+    if isinstance(value, bool) or not isinstance(value, int) or value != expected:
+        raise ValueError('%s: field %r must be the integer %d, got %r'
+                         % (context, field, expected, value))
+
+
+def load_initial_weights(model, checkpoint_path):
+    """Return the initialization provenance for *model*.
+
+    *checkpoint_path* ``None`` means the ordinary fresh initialization the
+    model was just built with, and only the marker is recorded.
+
+    Otherwise the resolved path is loaded on CPU with ``weights_only=True``,
+    its ``checkpoint_version``, ``model_version`` and ``encoding_version`` are
+    required to equal this module's, its ``architecture`` string must equal
+    :data:`ARCHITECTURE`, and its ``model_state_dict`` is loaded strictly into
+    *model*. Any mismatch is a ValueError naming the file, before training
+    starts.
+
+    Only the weights are taken. The checkpoint's optimizer state, torch RNG
+    state, epoch numbers, early-stopping counters and previous best loss are
+    deliberately ignored, so this run decides its own history, its own best
+    epoch and its own stopping, and the caller builds a fresh optimizer
+    afterwards. The file is opened read-only and never written.
+    """
+    if checkpoint_path is None:
+        return {
+            'mode': 'fresh',
+            'initial_checkpoint': None,
+            'initial_checkpoint_resolved': 'fresh initialization, no parent weights',
+            'optimizer': FRESH_OPTIMIZER_NOTE,
+            'initial_label': INITIAL_LABELS['fresh'],
+        }
+
+    resolved = Path(checkpoint_path).expanduser().resolve()
+    context = str(resolved)
+    if not resolved.exists():
+        raise ValueError('%s: initial checkpoint not found' % context)
+    if not resolved.is_file():
+        raise ValueError('%s: initial checkpoint is not a file' % context)
+    try:
+        checkpoint = torch.load(resolved, map_location='cpu', weights_only=True)
+    except Exception as exc:
+        raise ValueError('%s: could not be loaded as a weights-only checkpoint: '
+                         '%s: %s' % (context, type(exc).__name__, exc)) from exc
+    if not isinstance(checkpoint, dict):
+        raise ValueError('%s: does not contain a checkpoint dictionary (got %s)'
+                         % (context, type(checkpoint).__name__))
+
+    _require_version(checkpoint, 'checkpoint_version', CHECKPOINT_VERSION, context)
+    _require_version(checkpoint, 'model_version', MODEL_VERSION, context)
+    _require_version(checkpoint, 'encoding_version', ENCODING_VERSION, context)
+    architecture = checkpoint.get('architecture')
+    if architecture != ARCHITECTURE:
+        raise ValueError('%s: architecture does not match this trainer; '
+                         'expected %r, got %r'
+                         % (context, ARCHITECTURE, architecture))
+
+    state = checkpoint.get('model_state_dict')
+    if state is None:
+        raise ValueError('%s: has no model_state_dict' % context)
+    try:
+        model.load_state_dict(state, strict=True)
+    except Exception as exc:
+        raise ValueError('%s: weights do not fit OutcomeMLP: %s: %s'
+                         % (context, type(exc).__name__, exc)) from exc
+
+    return {
+        'mode': 'parent_weights',
+        'initial_checkpoint': str(checkpoint_path),
+        'initial_checkpoint_resolved': str(resolved),
+        'optimizer': FRESH_OPTIMIZER_NOTE,
+        'initial_label': INITIAL_LABELS['parent_weights'],
+    }
+
+
 def evaluate(model, boards, targets, batch_size):
     """Full-set MSE in eval mode under no_grad; sum of squared errors over rows."""
     model.eval()
@@ -290,11 +413,13 @@ def save_checkpoint(path, payload):
 def build_checkpoint(*, completed_epoch, best_epoch, best_validation_loss,
                      no_improvement_count, training_loss, validation_loss,
                      model, optimizer, config, paths, counts, load_seconds,
-                     total_seconds):
+                     total_seconds, initialization):
     """Return the checkpoint dictionary for one completed epoch.
 
     Every value is an ordinary Python object or a tensor, so the file loads
     with ``torch.load(..., map_location='cpu', weights_only=True)``.
+    ``initialization`` records how this run's weights were obtained, separately
+    from ``config``, which keeps the agreed settings keys unchanged.
     """
     return {
         'checkpoint_version': CHECKPOINT_VERSION,
@@ -307,6 +432,7 @@ def build_checkpoint(*, completed_epoch, best_epoch, best_validation_loss,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'torch_rng_state': torch.get_rng_state(),
+        'initialization': dict(initialization),
         'completed_epoch': completed_epoch,
         'best_epoch': best_epoch,
         'best_validation_loss': best_validation_loss,
@@ -339,18 +465,26 @@ def _require_finite(value, label, epoch):
                          % (label, epoch, value))
 
 
-def train_loop(training, validation, config, paths, counts, load_seconds, started):
+def train_loop(training, validation, config, paths, counts, load_seconds, started,
+               initial_checkpoint=None):
     """Run the training loop and return the result dictionary for the summary.
 
-    Raises ValueError for a non-finite loss. A KeyboardInterrupt ends the
-    loop, leaves the checkpoints already written in place and is reported
-    through ``stop_reason``.
+    *initial_checkpoint* is passed to :func:`load_initial_weights` after the
+    model is built and before any loss is evaluated, so the epoch-0 numbers
+    describe the weights this run starts from. The optimizer is always built
+    fresh from *config*, never restored from a checkpoint.
+
+    Raises ValueError for a non-finite loss or an unusable initial checkpoint.
+    A KeyboardInterrupt ends the loop, leaves the checkpoints already written
+    in place and is reported through ``stop_reason``.
     """
     torch.manual_seed(config['seed'])
     model = OutcomeMLP()
+    initialization = load_initial_weights(model, initial_checkpoint)
     optimizer = torch.optim.Adam(model.parameters(), lr=config['learning_rate'])
     loss_function = torch.nn.MSELoss()
     batch_size = config['batch_size']
+    initial_label = initialization['initial_label']
 
     initial_training_loss = evaluate(model, training.boards, training.targets, batch_size)
     initial_validation_loss = evaluate(model, validation.boards, validation.targets, batch_size)
@@ -361,7 +495,9 @@ def train_loop(training, validation, config, paths, counts, load_seconds, starte
 
     history = {
         'config': dict(config),
+        'initialization': dict(initialization),
         'initial': {
+            'label': initial_label,
             'training_loss': initial_training_loss,
             'validation_loss': initial_validation_loss,
         },
@@ -372,9 +508,13 @@ def train_loop(training, validation, config, paths, counts, load_seconds, starte
     # checkpoint metadata), so convert it before joining, as the later
     # writes in this loop already do.
     _write_history(Path(paths['output_dir']) / HISTORY_NAME, history)
-    print('epoch 0 (untrained) train_mse=%.6f validation_mse=%.6f '
+    print('epoch 0 (%s) train_mse=%.6f validation_mse=%.6f '
           'constant_baseline_validation_mse=%.6f'
-          % (initial_training_loss, initial_validation_loss, baseline_loss))
+          % (initial_label, initial_training_loss, initial_validation_loss,
+             baseline_loss))
+    if initial_checkpoint is not None:
+        print('initial weights loaded from %s'
+              % initialization['initial_checkpoint_resolved'])
     sys.stdout.flush()
 
     best_epoch = None
@@ -420,6 +560,7 @@ def train_loop(training, validation, config, paths, counts, load_seconds, starte
                 model=model, optimizer=optimizer, config=config, paths=paths,
                 counts=counts, load_seconds=load_seconds,
                 total_seconds=time.perf_counter() - started,
+                initialization=initialization,
             )
             if improved:
                 save_checkpoint(Path(paths['output_dir']) / BEST_NAME, payload)
@@ -446,6 +587,8 @@ def train_loop(training, validation, config, paths, counts, load_seconds, starte
         stop_reason = 'interrupted'
 
     return {
+        'initialization': initialization,
+        'initial_label': initial_label,
         'initial_training_loss': initial_training_loss,
         'initial_validation_loss': initial_validation_loss,
         'constant_baseline_validation_loss': baseline_loss,
@@ -467,12 +610,21 @@ def _write_history(path, history):
 
 def summary_text(result, config, paths, counts, load_seconds, total_seconds):
     """Return the fixed-name final summary text."""
+    initialization = result['initialization']
+    initial_label = result['initial_label']
     lines = [
-        'Othello first training run',
-        '=========================',
+        'Othello training run',
+        '===================',
         '',
         'dataset directory: %s' % paths['dataset_dir'],
         'output directory: %s' % paths['output_dir'],
+        '',
+        'initialization mode: %s' % initialization['mode'],
+        'initial checkpoint (as given): %s' % initialization['initial_checkpoint'],
+        'initial checkpoint (resolved): %s' % initialization['initial_checkpoint_resolved'],
+        'optimizer: %s' % initialization['optimizer'],
+        'weight initialization loads weights only; it is not a run resume, so no',
+        'parent epoch number, early-stopping counter or best loss was carried over.',
         '',
         'training rows: %d from %d games' % (counts['training_rows'],
                                              counts['training_games']),
@@ -491,10 +643,12 @@ def summary_text(result, config, paths, counts, load_seconds, total_seconds):
         % (CHECKPOINT_VERSION, ENCODING_VERSION, MODEL_VERSION),
         'target mapping: %s' % TARGET_MAPPING,
         '',
-        'untrained training MSE: %.6f' % result['initial_training_loss'],
-        'untrained validation MSE: %.6f' % result['initial_validation_loss'],
+        '%s training MSE: %.6f' % (initial_label, result['initial_training_loss']),
+        '%s validation MSE: %.6f' % (initial_label, result['initial_validation_loss']),
         'constant baseline validation MSE: %.6f'
         % result['constant_baseline_validation_loss'],
+        'validation losses in this file describe this run\'s validation split only;',
+        'compare them with losses from another run only when both used the same split.',
         '',
         'completed epochs: %d' % result['completed_epoch'],
         'stop reason: %s' % result['stop_reason'],
@@ -542,8 +696,16 @@ def main(argv=None):
     }
     dataset_dir = Path(args.dataset_dir).resolve()
     output_dir = Path(args.output_dir).resolve()
+    # Resolved here so a bad path fails before the dataset is read, and so the
+    # exact file is known before any output directory is created. The file is
+    # only ever read.
+    initial_checkpoint = (None if args.initial_checkpoint is None
+                          else Path(args.initial_checkpoint).expanduser().resolve())
     started = time.perf_counter()
     try:
+        if initial_checkpoint is not None and not initial_checkpoint.is_file():
+            raise ValueError('%s: initial checkpoint not found or not a file'
+                             % initial_checkpoint)
         _require_empty_output_dir(output_dir)
         output_dir.mkdir(parents=True)
         training, validation = load_datasets(dataset_dir)
@@ -564,10 +726,14 @@ def main(argv=None):
              validation.rows, validation.game_count))
     print('device cpu, torch threads=%d interop threads=%d'
           % (torch.get_num_threads(), torch.get_num_interop_threads()))
+    print('initialization: %s' % ('parent weights from %s' % initial_checkpoint
+                                  if initial_checkpoint is not None
+                                  else 'fresh (no --initial-checkpoint)'))
 
     try:
         result = train_loop(training, validation, config, paths, counts,
-                            load_seconds, started)
+                            load_seconds, started,
+                            initial_checkpoint=initial_checkpoint)
     except (ValueError, RuntimeError, OSError) as exc:
         print('training failed: %s' % exc, file=sys.stderr)
         return EXIT_FAILED
