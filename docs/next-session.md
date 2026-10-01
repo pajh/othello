@@ -138,3 +138,5 @@ Latest commands: docs/command-guide.md. User authorized full push and Generation
 - Dispatch confirmed: https://github.com/pajh/othello/actions/runs/36887079634, commit b9aea93, observed in_progress. Download selfplay-36887079634-1 after completion to a fresh runs/ directory; review collection/conversion/training and evaluation-summary.txt before considering adoption.
 
 - Generation008 successful and downloaded runs/github-symmetry/. Candidate633/37/330 vs parent in1000games (65.15%), zeroforfeits. Bestepoch2 validation0.190112 vs starting0.196363,3epochs/patience1. New candidate is runs/github-symmetry/checkpoints/github-candidate/best.pt; exactparent runs/github-symmetry/runs/github-selfplay/parent.pt. Repository best and existing Cpayload not changed by retrieval; choose adoption/export next.
+
+- Latest requested run: https://github.com/pajh/othello/actions/runs/36891605722,seed90005,parent Generation008epoch2,observed in_progress. NewCGquantizedsubmission runs/c-submission/submission.c87775chars compiled/reconstructionchecked/onesmoke; readyforpaste. OldCGassets runs/c-generation007/. No hosted outcome/newCGleague result yet.
