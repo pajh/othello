@@ -4,6 +4,8 @@
 
 Read AGENTS.md, status.md and TODO.md when starting a task, followed by the relevant task/design document. Consult GENERATIONS.md for experimental history. These files are shared project memory.
 
+The current next-session handover is docs/next-session.md: current artifacts/results, the user-selected5,000gamecollection/secondtraining plan, open training choices and exact OpenCode/hook recovery instructions. Read it when resuming; the requested experiments are for the next session, not automatic jobs.
+
 - status.md: concise current snapshot, implemented components, verification actually performed, current work, blockers and next step. Update after meaningful changes/handoffs. Distinguish plans from completed work and unrun checks from passed checks.
 - TODO.md: separate actionable backlog and observed issues. Use stable identifiers (T001, I001), mark completed items and distinguish agreed tasks from open decisions. Record actual issues with evidence; no hypothetical issue list or exhaustive test plan.
 - GENERATIONS.md: permanent chronological history, with headings such as `Generation 006 — YYYY-MM-DD — description`. Record purpose, changes/configuration, what actually ran, results/evidence, conclusions and next decisions. Explicitly mark unrun work and unknown results. Append entries, preserve failures/negative results and correct mistakes transparently. Generation 000 covers setup. Allocate later numbers to distinct agreed experimental iterations, not individual edits or tool calls. Infrastructure entries do not imply a trained model exists.
@@ -20,6 +22,8 @@ The agreed layout and staged plan are in docs/project-plan.md. The scaffold stag
 
 This is a personal learning project. The user chooses hypotheses, model architectures, training methods, and experiments. Do not supply game strategy or broaden scope unasked.
 
+User clarification 2026-10-01: keep small tasks small. Do not add proof work, fault tolerance, recovery features or exhaustive tests by default. Choose explicit checks together where needed; avoid broadening helpers with optional verification infrastructure.
+
 Bot SETTINGS/version convention agreed 2026-09-30: each bot exposes `get_id()`, with prominent hardcoded SETTINGS and a three-digit VERSION. Increment that file's VERSION on each future completed edit revision. IDs belong prominently in run reports/metadata, not training arrays. The current NN identity is `NN-004-R2-T0.05`: two uniformly random own actual moves (passes do not count), then seeded weighted selection; candidate-board inference is batched. The model remains loaded once and read-only. A fresh `create_player()` callable per seat/game is the minimal state mechanism; keep legacy stateless `play` bots compatible. Changes to these user-selected settings or methods require a bounded task.
 
 The primary Codex chat is for design, supervision, review, and brainstorming. Keep code and large/raw logs out of that chat; deliver short summaries and file links.
@@ -28,7 +32,7 @@ Implementation is delegated to OpenCode. Use `opencode/space-bunny-free` (Space 
 
 For implementation prompts explicitly pass `--agent build`: the T034 prompt inherited Plan mode and returned only a plan, with no file changes. An explicit model flag does not select the implementation agent. Retain Plan mode for planning-only requests when intended.
 
-Active user-visible Bunny session: `ses_f0cb2b2e1ffe7wbI0MsfT217MO`, titled `Python project overview and current status in 10 lines`. The user confirmed that a prompt sent with `opencode run --session` to this ID appears in their open terminal (BUNNY-LIVE-CHECK-01). Reuse this session for future bounded Bunny tasks rather than creating a new session, unless the user requests otherwise. Send only one task at a time and request a reread of updated project records. If the user's visible conversation changes, confirm its identity before claiming live delivery. The older records-writer session is separate.
+Current user-identified Bunny session (2026-10-01): `ses_f09b671eaffeJHQOKjugvgpYJR`, titled `Overview of Python files, rig, NN bot, and training rig`. User identified this conversation after a hello mistakenly went to yesterday's session. BUNNY-LIVE-HELLO-02 has been dispatched here; visible delivery awaits user confirmation. Use this ID for future bounded Bunny tasks. Yesterday's verified session `ses_f0cb2b2e1ffe7wbI0MsfT217MO` is no longer the intended conversation. Send only one task at a time; if the user's visible conversation changes, confirm its identity before claiming live delivery.
 
 Reusable OpenCode and notification workflows are documented in [docs/opencode-workflow.md](docs/opencode-workflow.md) and [docs/notification-workflow.md](docs/notification-workflow.md). Use `opencode session list` from the project directory to find IDs, confirm which conversation the user is viewing, then validate delivery with a distinctive read-only marker if needed. Do not infer the visible session from recency or model name. Use the verified ID with `opencode run --session ... --file ...` to inject future authorised tasks.
 

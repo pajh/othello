@@ -133,4 +133,25 @@ This runs 100 alternating games using `NN-004-R2-T0.05`, with the retained `best
 
 Exit status: 0 when the batch finishes, including when forfeits were recorded; 2 for a setup error; 1 if the engine or writer failed (completed records are kept and a best-effort failed summary is written); 130 after Ctrl-C (completed records are kept and an interrupted summary is published). Progress is printed about ten times per batch; there is no per-move output, and bot output never enters `games.jsonl`.
 
-Execution is sequential only: there is no resume, parallel scheduling, or HTML game report. Dataset conversion and model training are available through the documented helpers. Stateful bots expose `create_player()` so the rig creates an independent callable per seat per game; stateless bots may continue to expose only `play`. Seed replay assumes the same code and Python environment, though recorded moves replay without any RNG.
+Execution is sequential by default; there is no resume, parallel sharding across machines, or HTML game report. Dataset conversion and model training are available through the documented helpers. Stateful bots expose `create_player()` so the rig creates an independent callable per seat per game; stateless bots may continue to expose only `play`. Seed replay assumes the same code and Python environment, though recorded moves replay without any RNG.
+
+## Hosted collection on GitHub Actions
+
+`.github/workflows/selfplay.yml` collects the same NN self-play batch on a GitHub-hosted runner instead of on the laptop. It is manual only: it is never triggered by a push, pull request or schedule. It runs one job on `ubuntu-24.04` (four CPUs on a public repository's standard Linux runner) with `--workers 4`, one inference thread per worker. Conversion and training are not part of it, and nothing is committed, pushed or published.
+
+To run it:
+
+1. Commit and push this workflow, the `src/` and `scripts/` changes it depends on, and `models/first-model.pt` to the default branch. The workflow is not available until that is on the branch you select in the Run workflow dialog.
+2. Open the repository's **Actions** tab, choose **NN self-play collection**, and press **Run workflow**.
+3. Fill in the inputs. `seed` has no default and is yours to choose; `games` defaults to 5000, `workers` to 4, and `checkpoint` to `models/first-model.pt`, the retained baseline copied into this repository.
+4. Watch the job log: the helper prints the checkpoint, seed, game count and worker count, then the CLI's progress lines appear there. Collection is the slow part.
+5. When the job finishes, download the artifact `selfplay-<run id>-<run attempt>` from the job's summary page. It contains `runs/github-selfplay/`: the raw `run-<uuid>/` game records, `metadata.json`, `run-summary.txt`, `match-check.txt`, `diversity-summary.txt`, the collection provenance files and `workflow-runtime.txt`, which records the commit SHA, the resolved Python/torch/NumPy versions and the input values used.
+
+The same run from a terminal with the GitHub CLI, if preferred:
+
+```sh
+gh workflow run selfplay.yml --ref master -f games=5000 -f seed=90002 -f workers=4 -f checkpoint=models/first-model.pt
+```
+
+Two limits worth knowing. Uploaded artifacts are temporary: workflow artifacts expire under the repository's retention policy, so download any collection you want to keep into `runs/` before then; a copy kept only in GitHub is not the project's archive. And no hosted collection has been run yet, so the route and its timing are unproven.
+

@@ -27,3 +27,7 @@ Use one task at a time. Specify allowed files, interfaces, exclusions, and the c
 The `--agent build` flag matters: one earlier task inherited Plan mode and returned a plan without editing files. The user's visible-session experiment verified prompt delivery after confirming the right session. It did not measure whether persistent context improves task speed.
 
 For automated completion notices, use [notification-workflow.md](notification-workflow.md). Direct queue acceptance alone is not proof that a message appeared in the intended chat.
+
+## Current session update — 2026-10-01
+
+User identified `Overview of Python files, rig, NN bot, and training rig` as the visible conversation: `ses_f09b671eaffeJHQOKjugvgpYJR`. Notifications were registered to this chat and session, and read-only marker BUNNY-LIVE-HELLO-02 dispatched. User confirmation of visible marker is pending. The previous session responded to BUNNY-HELLO-01 but was the wrong visible conversation.

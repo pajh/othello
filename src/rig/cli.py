@@ -28,6 +28,20 @@ Every finished game is recorded and flushed immediately, so an
 interruption or a failure keeps all completed games.  Nothing is
 accumulated across games: only per-game state and the running tally.
 
+``--workers`` selects the execution setting.  The default 1 is the
+sequential path in this module, unchanged: both bot modules are imported
+once in this process, which is also where the bot display IDs come from.
+A value above 1 spawns that many worker processes through
+:mod:`rig.parallel`, which imports each bot module once per process (so a
+learned bot has one read-only model copy per worker, with CPU thread counts
+pinned before that import) and returns records and display IDs to this
+process.  Either way the parent owns the run directory, ``metadata.json``,
+the only writer of ``games.jsonl``, the tally, progress and the summary, and
+either way a game's seeds, colours, record and forfeit semantics are
+identical because both paths share :func:`_play_one_game` and the global game
+index.  Records arrive in global-index order through a small bounded window,
+so no sorting stage exists and the schema-1 record format is untouched.
+
 Exit status: 0 on normal completion (recorded forfeits are counted and do
 not fail the batch), 2 for a setup error, 1 for an engine or writer
 failure during the batch, 130 after ``KeyboardInterrupt``.
@@ -47,6 +61,7 @@ from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+from rig import parallel
 from rig.records import (
     BLACK_COLOUR,
     SCHEMA_VERSION,
@@ -93,8 +108,8 @@ def _positive_int(text):
 def _parse_args(argv):
     parser = argparse.ArgumentParser(
         prog='python -m rig.cli',
-        description='Play a sequential batch of Othello games and write '
-                    'replayable raw records.',
+        description='Play a batch of Othello games, in this process or on '
+                    'worker processes, and write replayable raw records.',
     )
     parser.add_argument('--bot1', required=True, metavar='MODULE',
                         help='importable bot module for bot 1, exposing '
@@ -115,6 +130,10 @@ def _parse_args(argv):
     parser.add_argument('--output-dir', default='runs/', metavar='DIR',
                         help='directory for run directories and the latest '
                              'summary (default: runs/)')
+    parser.add_argument('--workers', type=_positive_int, default=1, metavar='N',
+                        help='worker processes for the batch (1 or more); 1 '
+                             'keeps the sequential path in this process '
+                             '(default: 1)')
     parser.add_argument('--keep-history', action='store_true',
                         help='rotate the previous latest summary to the next '
                              'unused run-summary.N.txt before publishing the '
@@ -285,6 +304,13 @@ def _create_run_dir(output_dir):
     )
 
 
+def _thread_limit_text(args):
+    """Describe the numerical threads each game-playing process may use."""
+    if args.workers > 1:
+        return '1 pinned'
+    return 'default, not limited'
+
+
 def _write_metadata(run_dir, run_id, args, started_at, bot1_id, bot2_id):
     """Write run-level metadata and return its path.
 
@@ -292,6 +318,10 @@ def _write_metadata(run_dir, run_id, args, started_at, bot1_id, bot2_id):
     from.  They are run-level identity only: no ID is written into
     ``games.jsonl``, a game record's ``bots``/``config`` fields, the training
     archives or any label, so the schema-1 record format is untouched.
+
+    The worker count and the numerical thread count are execution settings,
+    not strategy: they say how many processes played the games, not what
+    decided them.
     """
     metadata = {
         'run_id': run_id,
@@ -310,6 +340,10 @@ def _write_metadata(run_dir, run_id, args, started_at, bot1_id, bot2_id):
         'requested_games': args.games,
         'starting_player_mode': _mode_text(args.force_start),
         'seed_derivation': SEED_DERIVATION_ID,
+        'workers_requested': args.workers,
+        'workers_effective': parallel.effective_workers(args.workers,
+                                                        args.games),
+        'numerical_threads': _thread_limit_text(args),
     }
     path = run_dir / METADATA_NAME
     with open(path, 'w', encoding='utf-8') as stream:
@@ -363,6 +397,10 @@ def _summary_text(state, *, run_id, run_dir, output_dir, args, tally,
         'master seed: %d' % args.seed,
         'seed derivation: %s' % SEED_DERIVATION_ID,
         'starting player mode: %s' % _mode_text(args.force_start),
+        'workers requested: %d' % args.workers,
+        'workers effective: %d' % parallel.effective_workers(args.workers,
+                                                             args.games),
+        'numerical threads: %s' % _thread_limit_text(args),
         'latest summary: %s' % (output_dir / SUMMARY_NAME),
     ]
     if error is not None:
@@ -407,72 +445,153 @@ def _publish_summary(output_dir, text, keep_history):
     return latest
 
 
+def _play_one_game(index, run_id, master_seed, bot1_module, bot2_module,
+                   force_start, loaded_bots):
+    """Play one game of a batch and return its schema-v1 record.
+
+    The one place a game is built, shared by the sequential and worker paths
+    so game identity cannot depend on how many workers run it.  *index* is the
+    global game index: per-bot seeds are derived from it and
+    *master_seed*, and the bot-to-colour assignment comes from it, never from
+    a worker number or task arrival order.
+
+    *loaded_bots* maps bot ID 1 and 2 to the dictionaries ``_load_bot``
+    returned.  Each seat gets a fresh player from its module's
+    ``create_player`` factory, so per-game state starts clean in every game.
+    A bot exception or invalid action is handled inside ``run_game`` as a
+    forfeit record; anything raised here (a factory failure, an inconsistent
+    colour assignment, a writer-level inconsistency) is a batch failure and
+    is not turned into a forfeit.
+    """
+    modules = {1: bot1_module, 2: bot2_module}
+    seeds = {bot_id: _derive_seed(master_seed, index, bot_id)
+             for bot_id in (1, 2)}
+    black_id = _black_bot_id(index, force_start)
+    white_id = 2 if black_id == 1 else 1
+    # Record the colours actually played in this game, so that default
+    # alternation and --force-start are both reflected in the assignment.  A
+    # fixed bot-ID mapping would misreport the second and later games.
+    colours = {black_id: BLACK_COLOUR, white_id: WHITE_COLOUR}
+    bots = {
+        bot_id: {
+            'module': modules[bot_id],
+            'colour': colours[bot_id],
+            'seed': seeds[bot_id],
+            'config': {},
+        }
+        for bot_id in (1, 2)
+    }
+    players = {bot_id: _new_player(loaded_bots[bot_id], modules[bot_id],
+                                  bot_id, index)
+               for bot_id in (1, 2)}
+    result = run_game(
+        players[black_id], players[white_id],
+        black_seed=seeds[black_id], white_seed=seeds[white_id],
+    )
+    return make_game_record(result, run_id=run_id, game_index=index, bots=bots)
+
+
+def _report_progress(games, completed, tally, step):
+    """Print the first-game line, then one line per *step* completed games."""
+    if completed == 1 or completed % step == 0:
+        print('completed %d/%d games (normal %d, forfeits %d)'
+              % (completed, games, tally['normal'], tally['forfeit']))
+        sys.stdout.flush()
+
+
 def _run_batch(args, loaded_bots, run_id, run_dir, tally):
-    """Play every game, writing one record per finished game.
+    """Play every game in this process, writing one record per finished game.
 
     Returns the number of completed games.  A bot forfeit is recorded and
     the batch continues; an engine or writer failure is raised after the
     completed records are already flushed, and KeyboardInterrupt is
-    re-raised so the caller can publish an interrupted summary.
-
-    *loaded_bots* maps bot ID 1 and 2 to the dictionaries ``_load_bot``
-    returned.  Each game asks both bots for a fresh player, so a stateful bot
-    starts clean every game and each seat keeps its own state.
-    Bot-to-colour mapping, seed derivation and the runner's per-bot, per-game
-    RNGs are unchanged.  The per-game ``bots`` dict below is the record
-    assignment, which is why the parameter is named differently.
+    re-raised so the caller can publish an interrupted summary.  This is the
+    ``--workers 1`` path and is unchanged in behaviour.
     """
-    modules = {1: args.bot1, 2: args.bot2}
     step = max(1, args.games // PROGRESS_DIVISIONS)
     completed = 0
 
     with open(run_dir / RECORDS_NAME, 'w', encoding='utf-8') as stream:
         for index in range(args.games):
-            seeds = {bot_id: _derive_seed(args.seed, index, bot_id)
-                     for bot_id in (1, 2)}
-            black_id = _black_bot_id(index, args.force_start)
-            white_id = 2 if black_id == 1 else 1
-            # Record the colours actually played in this game, so that
-            # default alternation and --force-start are both reflected in
-            # the assignment.  A fixed bot-ID mapping would misreport the
-            # second and later games.
-            colours = {black_id: BLACK_COLOUR, white_id: WHITE_COLOUR}
-            bots = {
-                bot_id: {
-                    'module': modules[bot_id],
-                    'colour': colours[bot_id],
-                    'seed': seeds[bot_id],
-                    'config': {},
-                }
-                for bot_id in (1, 2)
-            }
-            players = {bot_id: _new_player(loaded_bots[bot_id],
-                                           modules[bot_id], bot_id, index)
-                       for bot_id in (1, 2)}
-            result = run_game(
-                players[black_id], players[white_id],
-                black_seed=seeds[black_id], white_seed=seeds[white_id],
-            )
-            record = make_game_record(
-                result, run_id=run_id, game_index=index, bots=bots,
-            )
+            record = _play_one_game(index, run_id, args.seed, args.bot1,
+                                    args.bot2, args.force_start, loaded_bots)
             write_game_record(stream, record)
             completed += 1
             _tally(tally, record)
-            if completed == 1 or completed % step == 0:
-                print('completed %d/%d games (normal %d, forfeits %d)'
-                      % (completed, args.games, tally['normal'],
-                         tally['forfeit']))
-                sys.stdout.flush()
+            _report_progress(args.games, completed, tally, step)
     return completed
+
+
+def _run_parallel_batch(args, run_id, run_dir, tally, run_state):
+    """Play every game on spawned workers, writing records here in order.
+
+    The parent opens ``games.jsonl`` itself and writes each record as it is
+    delivered in global-index order; workers only play games and build
+    records.  This process imports no bot module, so a learned bot model is
+    loaded once per worker rather than an extra time here, and the display
+    IDs come back from the workers.
+
+    *run_state* is a plain dict whose ``completed``, ``metadata_path``,
+    ``bot1_id`` and ``bot2_id`` entries are updated as work happens, so a
+    failed or interrupted parallel run still reports the games it wrote and
+    the IDs the workers reported.  Bot IDs and ``metadata.json`` appear as
+    soon as the workers answer, before the first game, which is why they
+    cannot be written by the caller beforehand.
+    """
+    workers = parallel.effective_workers(args.workers, args.games)
+    step = max(1, args.games // PROGRESS_DIVISIONS)
+    started_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    run_state.update(completed=0, metadata_path=None, bot1_id=None,
+                     bot2_id=None)
+
+    print('workers: %d (spawned processes, %s numerical thread each)'
+          % (workers, _thread_limit_text(args)))
+    sys.stdout.flush()
+
+    with open(run_dir / RECORDS_NAME, 'w', encoding='utf-8') as stream:
+        def publish_ids(reported_bot1_id, reported_bot2_id):
+            """Record the workers' bot IDs, then publish run metadata."""
+            run_state['bot1_id'] = reported_bot1_id
+            run_state['bot2_id'] = reported_bot2_id
+            _print_bot_ids(args, reported_bot1_id, reported_bot2_id)
+            run_state['metadata_path'] = _write_metadata(
+                run_dir, run_id, args, started_at, reported_bot1_id,
+                reported_bot2_id)
+
+        def publish_record(record):
+            """Write one delivered record, update the tally and progress."""
+            write_game_record(stream, record)
+            _tally(tally, record)
+            run_state['completed'] += 1
+            _report_progress(args.games, run_state['completed'], tally, step)
+
+        parallel.run_batch(args, run_id, publish_ids, publish_record)
+
+
+def _print_bot_ids(args, bot1_id, bot2_id):
+    """Print both bot display IDs, falling back to the module names.
+
+    A batch that failed before any worker reported an ID keeps working: the
+    module name is the legacy display ID, so the lines stay truthful.
+    """
+    print('bot 1 ID: %s (%s)' % (bot1_id or args.bot1, args.bot1))
+    print('bot 2 ID: %s (%s)' % (bot2_id or args.bot2, args.bot2))
+    sys.stdout.flush()
 
 
 def main(argv=None):
     """Entry point for ``python -m rig.cli``; returns the exit status."""
     args = _parse_args(argv)
 
+    # With workers above 1 no bot module is imported here: the workers load
+    # the bots once each and report their display IDs back, so this process
+    # never pays for an extra model load.
+    parallel_path = args.workers > 1
     try:
-        bots = {1: _load_bot(args.bot1), 2: _load_bot(args.bot2)}
+        bots = None if parallel_path else {
+            1: _load_bot(args.bot1),
+            2: _load_bot(args.bot2),
+        }
         output_dir = Path(args.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         run_id = uuid.uuid4().hex
@@ -489,53 +608,75 @@ def main(argv=None):
     completed = 0
     state = 'failed'
     error_text = None
+    bot1_id = None if bots is None else bots[1]['id']
+    bot2_id = None if bots is None else bots[2]['id']
+    metadata_path = None
     print('run %s: %d games, %s, master seed %d'
           % (run_dir.name, args.games, _mode_text(args.force_start),
              args.seed))
-    print('bot 1 ID: %s (%s)' % (bots[1]['id'], args.bot1))
-    print('bot 2 ID: %s (%s)' % (bots[2]['id'], args.bot2))
-    sys.stdout.flush()
+    if bots is not None:
+        _print_bot_ids(args, bot1_id, bot2_id)
 
     try:
-        started_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-        metadata_path = _write_metadata(run_dir, run_id, args, started_at,
-                                        bots[1]['id'], bots[2]['id'])
-    except (OSError, ValueError, TypeError) as exc:
-        error_text = '%s: %s' % (type(exc).__name__, exc)
-        print('run %s: failed before the first game: %s'
-              % (run_dir.name, error_text), file=sys.stderr)
-        summary_path = None
-    else:
-        try:
+        if parallel_path:
+            # The parallel path reports progress through *run_state*, because
+            # its bot IDs, metadata path and written-game count are only known
+            # once the workers and the record callbacks have run.
+            run_state = {}
+            _run_parallel_batch(args, run_id, run_dir, tally, run_state)
+            completed = run_state['completed']
+            metadata_path = run_state['metadata_path']
+            bot1_id = run_state['bot1_id']
+            bot2_id = run_state['bot2_id']
+        else:
+            metadata_path = _write_metadata(
+                run_dir, run_id, args,
+                datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                bot1_id, bot2_id)
             completed = _run_batch(args, bots, run_id, run_dir, tally)
-        except KeyboardInterrupt:
-            state = 'interrupted'
-            print('\nrun %s: interrupted after %d completed games; completed '
-                  'records are kept' % (run_dir.name, completed),
-                  file=sys.stderr)
-        except Exception as exc:
-            error_text = '%s: %s' % (type(exc).__name__, exc)
+    except KeyboardInterrupt:
+        state = 'interrupted'
+        if parallel_path:
+            completed = run_state['completed']
+            metadata_path = run_state['metadata_path']
+            bot1_id = run_state['bot1_id']
+            bot2_id = run_state['bot2_id']
+        print('\nrun %s: interrupted after %d completed games; completed '
+              'records are kept' % (run_dir.name, completed),
+              file=sys.stderr)
+    except Exception as exc:
+        error_text = '%s: %s' % (type(exc).__name__, exc)
+        if parallel_path:
+            completed = run_state['completed']
+            metadata_path = run_state['metadata_path']
+            bot1_id = run_state['bot1_id']
+            bot2_id = run_state['bot2_id']
+        if completed == 0:
+            print('run %s: failed before the first game: %s'
+                  % (run_dir.name, error_text), file=sys.stderr)
+        else:
             print('run %s: failed after %d completed games: %s'
                   % (run_dir.name, completed, error_text), file=sys.stderr)
-        else:
-            state = 'completed'
+    else:
+        state = 'completed'
 
-        artifacts = [metadata_path, run_dir / RECORDS_NAME]
-        try:
-            text = _summary_text(
-                state, run_id=run_id, run_dir=run_dir, output_dir=output_dir,
-                args=args, tally=tally, completed=completed,
-                artifacts=artifacts, error=error_text,
-                bot1_id=bots[1]['id'], bot2_id=bots[2]['id'],
-            )
-            summary_path = _publish_summary(output_dir, text,
-                                            args.keep_history)
-        except OSError as exc:
-            summary_path = None
-            print('warning: could not write the summary: %s: %s'
-                  % (type(exc).__name__, exc), file=sys.stderr)
-            if error_text is not None:
-                print('original failure: %s' % error_text, file=sys.stderr)
+    artifacts = [run_dir / RECORDS_NAME]
+    if metadata_path is not None:
+        artifacts.insert(0, metadata_path)
+    try:
+        text = _summary_text(
+            state, run_id=run_id, run_dir=run_dir, output_dir=output_dir,
+            args=args, tally=tally, completed=completed,
+            artifacts=artifacts, error=error_text,
+            bot1_id=bot1_id, bot2_id=bot2_id,
+        )
+        summary_path = _publish_summary(output_dir, text, args.keep_history)
+    except OSError as exc:
+        summary_path = None
+        print('warning: could not write the summary: %s: %s'
+              % (type(exc).__name__, exc), file=sys.stderr)
+        if error_text is not None:
+            print('original failure: %s' % error_text, file=sys.stderr)
 
     if state == 'completed':
         print('completed %d/%d games; normal %d, forfeits %d, draws %d'
@@ -546,19 +687,16 @@ def main(argv=None):
         if tally['forfeit']:
             print('note: %d forfeit(s) were recorded; those games are '
                   'excluded from training' % tally['forfeit'])
-        print('bot 1 ID: %s (%s)' % (bots[1]['id'], args.bot1))
-        print('bot 2 ID: %s (%s)' % (bots[2]['id'], args.bot2))
+        _print_bot_ids(args, bot1_id, bot2_id)
         if summary_path is not None:
             print('summary: %s' % summary_path)
         return EXIT_OK
     if state == 'interrupted':
-        print('bot 1 ID: %s (%s)' % (bots[1]['id'], args.bot1))
-        print('bot 2 ID: %s (%s)' % (bots[2]['id'], args.bot2))
+        _print_bot_ids(args, bot1_id, bot2_id)
         if summary_path is not None:
             print('interrupted summary: %s' % summary_path)
         return EXIT_INTERRUPTED
-    print('bot 1 ID: %s (%s)' % (bots[1]['id'], args.bot1))
-    print('bot 2 ID: %s (%s)' % (bots[2]['id'], args.bot2))
+    _print_bot_ids(args, bot1_id, bot2_id)
     return EXIT_FAILED
 
 

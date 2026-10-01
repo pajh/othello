@@ -1,11 +1,14 @@
 # Documentation index
 
+Start the next session with [Where we are and next steps](next-session.md).
+
 ## Architecture and contracts
 
 - [Project architecture and scope](project-plan.md)
 - [Batch CLI and game-record schema](batch-design.md)
 - [Dataset conversion contract](dataset-design.md)
 - [First model and training baseline](first-model-design.md)
+- [Four-worker collection and GitHub Actions spec](parallel-and-github-design.md)
 
 ## Reusable workflows
 
@@ -16,6 +19,7 @@
 ## Actual data and experiment reports
 
 - [Initial 1,000-game collection](collection-1000-review.md)
+- [First 5,000-game NN self-play collection](selfplay-5000-results.md)
 - [First training result](first-training-results.md)
 - [Max-bot smoke result](max-bot-smoke-results.md)
 - [Learned-bot versus random](nn-bot-smoke-results.md)

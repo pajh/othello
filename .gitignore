@@ -29,6 +29,7 @@ dist/
 *.npz
 *.npy
 *.pt
+!/models/first-model.pt
 *.pth
 *.onnx
 *.jsonl
