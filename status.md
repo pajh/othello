@@ -104,3 +104,5 @@ Updated: 2026-10-01.
 - T066 workflow delivered: symmetry conversion/patience1, disposable hosted candidate clone,1000 parent-candidate games with4workers/seed+100000, logs/reports/artifact. Review caught duplicate WORKERS YAML key; correction requested before push. Latest hosted candidate now copied to models/best.pt as explicitly selected next parent. T067 commit/push/dispatch remains pending.
 
 - Duplicate WORKERS corrected; primary duplicate-key-rejecting YAML parse passed (12steps), git diff --check clean, models/best.pt byte-identical to selected hosted candidate (609112bytes). Commit/push and dispatch now proceeding.
+
+- T067 complete: full implementation/model/docs commit b9aea93 pushed origin/master. Generation008 dispatched: https://github.com/pajh/othello/actions/runs/36887079634, observed in_progress,5000games/seed90004/workers4/models/best.pt. Expected eval1000games/seed190004. Runtime/results not yet known; retrieve artifact and review when complete.

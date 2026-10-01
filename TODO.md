@@ -145,4 +145,4 @@ I001–I006 are resolved. They covered an invalid EMPTY forfeit actor, incorrect
 
 - [x] T065 — optional eight-way board symmetry expansion after whole-game split, training and validation independently.
 - [x] T066 — hosted 1000-game R2/T0.05 candidate-vs-exact-parent evaluation, summaries/logs/artifact inclusion; enable symmetry conversion and patience1.
-- [ ] T067 — promote latest hosted candidate to repository models/best.pt, full commit/push, dispatch 5000-game four-worker hosted training/evaluation with fresh seed90004. User authorized.
+- [x] T067 — promote latest hosted candidate to repository models/best.pt, full commit/push, dispatch 5000-game four-worker hosted training/evaluation with fresh seed90004. User authorized.

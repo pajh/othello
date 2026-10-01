@@ -134,3 +134,5 @@ Run36841281392 successful, downloaded runs/github-first/. Parent runs/github-fir
 ## Current hosted round — 2026-10-01
 
 Latest commands: docs/command-guide.md. User authorized full push and Generation008 hosted run: models/best.pt now first-hosted candidate,5000games seed90004/workers4,8way symmetry after whole-game split,continued weights/newAdam/patience1,1000candidate-parent evaluation seed190004. Candidate remains a download pending user adoption. See status.md latest entries for dispatch URL/results.
+
+- Dispatch confirmed: https://github.com/pajh/othello/actions/runs/36887079634, commit b9aea93, observed in_progress. Download selfplay-36887079634-1 after completion to a fresh runs/ directory; review collection/conversion/training and evaluation-summary.txt before considering adoption.
