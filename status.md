@@ -120,3 +120,5 @@ Updated: 2026-10-01.
 - Userreports priorGeneration008quantizedCGsubmission now17thWood2 versus78th earlier. Arenaevidence separatefromunquantizedhostedcandidate evaluation; no leaguepromotionreported.
 
 - Userauthorizes next identical hostedround whileeating. Generation009candidate copied byteexact to models/best.pt; seed90006/workers4/eval190006. Push/dispatch proceeding; Csubmission unchanged, rebuild deferred until userreturns.
+
+- T071 complete: latestbest committed/pushed baa8938; Generation010 run36906357664 https://github.com/pajh/othello/actions/runs/36906357664 dispatched/observed in_progress.5000games/seed90006/workers4/eightsymmetries/patience1/eval1000seed190006. Results pending; Cbotrebuild deferred.

@@ -142,3 +142,5 @@ Latest commands: docs/command-guide.md. User authorized full push and Generation
 - Latest requested run: https://github.com/pajh/othello/actions/runs/36891605722,seed90005,parent Generation008epoch2,observed in_progress. NewCGquantizedsubmission runs/c-submission/submission.c87775chars compiled/reconstructionchecked/onesmoke; readyforpaste. OldCGassets runs/c-generation007/. No hosted outcome/newCGleague result yet.
 
 - Generation009 run36891605722 successful, downloaded runs/github-symmetry-second/. Newcandidate577/26/397 vs exactparent in1000games (59%score),0forfeits;bestepoch1MSE0.192371 vs starting0.194623,2epochs/patience1. Candidate runs/github-symmetry-second/checkpoints/github-candidate/best.pt; not promoted/exported. CurrentCGGeneration008quantizedbot reached17thWood2 peruser.
+
+- T071 complete: latestbest committed/pushed baa8938; Generation010 run36906357664 https://github.com/pajh/othello/actions/runs/36906357664 dispatched/observed in_progress.5000games/seed90006/workers4/eightsymmetries/patience1/eval1000seed190006. Results pending; Cbotrebuild deferred.

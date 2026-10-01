@@ -349,3 +349,5 @@ This distinct training iteration was dispatched before travel and its dispatch w
 
 - User authorized promoting Generation009 bestepoch1candidate to models/best.pt, pushing and launching another identical hosted round while eating. Parent source runs/github-symmetry-second/checkpoints/github-candidate/best.pt, prior1000parentmatch577/26/397 (59%).
 - Plan5000selfplay seed90006/workers4/R2T0.05,whole-game80/20splitseed12345 then8symmetries inbothsplits,continuedweights/newAdam/patience1,max30epochs;1000candidate-parent evaluationseed190006. No OpenCode work needed; no CGexport/rebuild requested until user returns. Runtime/results pending.
+
+- T071 complete: latestbest committed/pushed baa8938; Generation010 run36906357664 https://github.com/pajh/othello/actions/runs/36906357664 dispatched/observed in_progress.5000games/seed90006/workers4/eightsymmetries/patience1/eval1000seed190006. Results pending; Cbotrebuild deferred.

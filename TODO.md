@@ -153,4 +153,4 @@ I001–I006 are resolved. They covered an invalid EMPTY forfeit actor, incorrect
 
 - [x] T070 — retrieve/summarize second symmetry-hosted round, preserve candidate/parent/reports; record userCG17thWood2. Further adoption/CGrefresh/experiment awaits user selection.
 
-- [ ] T071 — push Generation009candidate asbest and dispatch unchanged hosted5000/1000 round seed90006; CGrebuild deferred.
+- [x] T071 — push Generation009candidate asbest and dispatch unchanged hosted5000/1000 round seed90006; CGrebuild deferred.
