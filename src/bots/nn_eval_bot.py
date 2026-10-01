@@ -8,7 +8,7 @@ only the constants listed below. Nothing here is a permanent second bot.
 Differences from the canonical file, and nothing else:
 
 1. the hardcoded checkpoint in :func:`_load_model`, this one file:
-   ``checkpoints/third-model/run-selfplay-5000/best.pt`` under the repository
+   ``runs/github-first/checkpoints/github-candidate/best.pt`` under the repository
    root;
 2. :data:`RANDOM_MOVES` = 0 and :data:`TEMPERATURE` = 0, so this copy plays the
    highest-scoring legal move from the very first move of every game — the
@@ -86,7 +86,7 @@ from training.model import MODEL_VERSION, OutcomeMLP
 # move, so the display ID reads NN-EVAL-001-R0-T0. Edit nn_bot.py for any
 # real change; regenerate this copy rather than developing it.
 # ===================================================================
-VERSION = '001'
+VERSION = '002'
 BOTNAME = 'NN-EVAL'
 RANDOM_MOVES = 0
 # Temperature for choosing among scored moves after the random opening.
@@ -157,8 +157,8 @@ def _load_model():
     # CHECKPOINT_ENV, so this copy always plays this one file and needs no
     # environment variable. The parent bot is unaffected and still selected by
     # OTHELLO_NN_CHECKPOINT.
-    raw_path = ('/home/paul/dev/othello/checkpoints/third-model'
-                '/run-selfplay-5000/best.pt')
+    raw_path = ('/home/paul/dev/othello/runs/github-first'
+                '/checkpoints/github-candidate/best.pt')
     path = os.path.abspath(os.path.expanduser(raw_path.strip()))
     if not os.path.exists(path):
         raise RuntimeError(

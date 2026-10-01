@@ -72,7 +72,77 @@ I001–I006 are resolved. They covered an invalid EMPTY forfeit actor, incorrect
 
 - T048 user result63/4/33,100normal0forfeits. Further collection/training/evaluation decisions remain with user; hosted runtime still unrun.
 
-- [ ] T049 — first hosted5000 latest-best selfplay -> conversion -> candidate training, download artifacts and exact parent, then local100candidate-parent. Bunny workflow-only extension dispatched; model copy prepared. No hosted job yet.
+- [x] T049 — first hosted5000 latest-best selfplay -> conversion -> candidate training, download artifacts and exact parent, then local100candidate-parent. Bunny workflow-only extension dispatched; model copy prepared. No hosted job yet.
 - [ ] T050 — later desired hosted1000candidate-parent evaluation and reports; design direction only, outside first hosted-run scope.
 
 - T049 workflow implementation delivered; remote5000dispatch is next, using models/best.pt (third model), seed90003/workers4. No hosted1000evaluation.
+
+- [ ] T051 — C bot/export/decompress/Makefile/combine plan prepared in docs/c-bot-plan.md, implementation not started. User explicitly requests200,000+position C/PyTorch parity comparison, user-run via Luna helper. Await CG protocol/size constraints and deployment setting; compression/precision remains a user choice.
+
+- [ ] T052 — early C FP16 weight-storage experiment after FP32 parity: same weights rounded to binary16, decoded to float32 for C arithmetic; score/selection/size comparison plus user-chosen playing-strength comparison. Initial C design remains FP32. No experiment run.
+
+- T049 remote stages complete: run36841281392 success and downloaded runs/github-first/. Local100candidate/exactparent remains to run; hosted1000evaluation still later stage.
+
+- T049 local downloadedcandidate/parent100 complete54/4/42. Future hosted1000evaluation remains T050; no new job or promotion selected.
+
+- [x] T053 — user-selected100greedy hostedcandidate vs random; disposable nn_eval_bot now selects downloaded hostedcandidate, ID NN-EVAL-002-R0-T0. Command prepared; no game launched.
+
+- T053 user result100wins/0draws/0losses,100normal0forfeits. No further games launched.
+
+- [x] T054 — random C bot c/bot.c and bots.c_random_bot stdin/stdout wrapper, make bot, one initial smoke, then user-run100 versus RAND-001 with no forfeits and roughly balanced performance. Manual CG submission after local success; neural headers/combine excluded from first deliverable.
+
+- T054 implementation/one-game smoke complete; remaining: user-run100 versus RAND-001 (seed94001, workers1, runs/c-random-vs-random), then manual CG submission if satisfactory. Referee coordinate mapping confirmed; actual CG run unknown. Future Bunny tasks one deliverable at a time.
+
+- [x] T055 — remove routine C stderr move/startup/pass chatter; retain real errors and move stdout. One-file Bunny task, build only.
+
+- T054 complete: user clean local100 reported49–44, then actual CG run finished normally14–50 against BOSS1. Random C protocol proof of concept exercised locally and on CG. Neural forward/export/compression/combine remain separate future tasks.
+
+- [x] T056 — standalone c/nn.h Model/Layer/setup/forward, current hardcoded architecture, c/test_nn.c random-data ASan/UBSan/leak smoke. No bot integration or production teardown. One bounded deliverable.
+- [x] T057 — real model blob export/load and C/PyTorch comparison completed on10,000known replay-derived boards (superseded arbitrary random inputs). User run PASS, maximum absolute error2.38418579e-7, zero outside tolerance/nonfinite/range failures.
+
+- [x] T057a — simple Python checkpoint exporter to model.bin and blob-layout.txt, fixed agreed tensor order/little-endianFP32; export hostedcandidate once and verify198148bytes. No C edits or numerical checks.
+
+- [x] T057b — Python test CSV generator, run10,000known after-action boards from hosted validation dataset through matching hostedcandidate, CSV sanity check. Explicit user authorization to run this generator; C reader/comparison separate next task. Supersedes random-input corpus in T057.
+
+- [x] T057c — C rig reads model.bin into Model.blob and real-board reference CSV, setup once/forward per row, tolerance1e-5absolute+1e-5relative, concise PASS/FAIL summary, sanitizer build. User-run10000comparison; no bot integration.
+
+- T057c rig delivered and built cleanly; actual10000position C/PyTorch/sanitizer run remains user-run/unperformed. T057 overall numerical comparison still open.
+
+- [x] I008 — observed C comparison host-check false rejection on x86_64: byte test reversed. Correct expected1.0f bytes to00/00/80/3f with4byte guard; rebuild, user reruns corpus.
+
+- T057c runtime complete after I008 fix:10000/10000rows compared, mean error1.61441334e-8, max2.38418579e-7, PASS; user sanitizer-enabled execution showed no diagnostics.
+
+- C submission constraint confirmed by user:100000source characters. Current FP32/FP16 raw-DEFLATE Base64/Base85 sizes exceed limit before C overhead. Compression codec/weight precision/text encoding choice remains open; do not implement oversized payload route without decision.
+
+- [x] T058 — sklearn shared256center codebook for49537parameters, byteindices, reconstructedFP32blob and simple errors/sizes; then user10000board score comparison vs original CSV. Ctable decode separate next task. Model budget75000chars, code25000, hardtotal100000.
+
+- T058 exporter/quantization complete; user10000board score-drift run remains pending. No adoption or Ccodebook decoder yet.
+
+- T058 quantized10000board comparison user-complete:MAE0.000824199575/max0.00866732001,0invalidscores,9780strictFP32gate failures. Separate quantization acceptance/move-selection/playing-strength decision remains open; original parity gate retained.
+
+- T058 deployment direction: prioritize actual quantizedbot strength, defer oversized-original comparisons unless diagnosing observed problem. Compression decision evidence: combinedpayload saves only2672Base64chars viaDEFLATE; uncompressed67416chars already within75000modelbudget. Recommend no DEFLATE; pending user choice, startup unmeasured.
+
+- [x] T059a — Python emit uncompressedBase64 model.h from existingcodebook+indices, lengths and packed/expandedCRC32, simpleheaderdecode/reconstructionbytecheck and75000charbudget.
+- [x] T059b — next separate authorizedtask afterT059a: CBase64decode/checkpayload, expandcodebookindices into FP32blob/checkCRC, bytecomparewith previousquantizedblob; same10000board results expected. No compression or botintegration yet.
+
+- T059b Cdecode/reconstruction smoke complete:byteexactquantizedblob,bothCRCs/passcleanASanUBSan/leakcheck. FirstBase64padding arithmetic error fixed during observedcheck. User10000score rerun pending; no botintegration.
+
+- [x] T060 — single-pass scripts/scrunch.py: replace mainquotedincludes withheadercontents, removequotedincludesinsidepastedheaders, stripcomments safely/nootherminification, character/bytecount andwarn100000. No recursion or neuralbotintegration. Mainmustlistalllocalheadersinorder.
+
+- T060 delivered:currentrandomsubmission3816chars,3header scratchcheck81486chars/zeroquotedincludes/compiled. Actualbotstillrandom. GCCO3inline prefix recommendation researched; injectionnotimplemented, CPUtargetselectionopen.
+
+- [x] T061 — wire quantizedembeddedNN into bot.c greedyfromstart; CGboard/candidateflips/actorplanes/forward, startupmodelonce, gccbuild/onesmoke. No header/wrapper/scrunchchanges in thisBunnytask.
+
+- [x] T062 — prependO3inline in scrunch, generateactualneuralCGsubmission/count and compileexactfilewithGCC. Wrapperidentityfixseparate.
+
+- T062 finalneuralCGsubmission88256chars/bytes,11744belowlimit, exactGCCbuildclean. ActualCGneuralrunpending; localwrapperidentitystillstale.
+
+- [x] T063 — scrunch removesnewlineonlyforcomment-bearinglineswithnocode; preservesoriginalblanklines/codewhitespace/literals. Regenerateactualneuralfile/count/exactGCCcompile.
+
+- [x] I009 — observedremainingcommentblankblocks:markeachlineconsumedinblock_comment ascomment, notonlyopeningline. Regenerateandinspectactualfilehead/size/compile; preserveintentionalblanklines.
+
+- [x] T064 — single current commandguide for allscripts/tools: localmulticorecollection/conversion/training/evaluation, GitHubdispatch/download, NNblob/codebook/header/tests/GCC/scrunch/CGsubmission. Verifyflagsagainstactualsource, linkREADME/index.
+
+- [x] T065 — optional eight-way board symmetry expansion after whole-game split, training and validation independently.
+- [x] T066 — hosted 1000-game R2/T0.05 candidate-vs-exact-parent evaluation, summaries/logs/artifact inclusion; enable symmetry conversion and patience1.
+- [ ] T067 — promote latest hosted candidate to repository models/best.pt, full commit/push, dispatch 5000-game four-worker hosted training/evaluation with fresh seed90004. User authorized.

@@ -10,7 +10,8 @@ Select this file explicitly with `OTHELLO_NN_CHECKPOINT`; bot settings are uncha
 Keep this baseline separate from future candidate models.
 
 `best.pt` is the current selected model for hosted self-play: a copy of
-`checkpoints/third-model/run-selfplay-5000/best.pt`, selected epoch 1 from the
-second 5,000-game self-play continuation. Copied 2026-10-01 for the first
-GitHub collection/conversion/training run. Preserve this parent in downloaded
-run artifacts when evaluating a new hosted candidate.
+`runs/github-first/checkpoints/github-candidate/best.pt`, the epoch-1 candidate
+from successful GitHub run 36841281392. Selected for the next hosted round on
+2026-10-01 after local evaluation: 54 wins / 4 draws / 42 losses against its
+parent and greedy 100 wins / 0 draws / 0 losses against random.
+The next workflow retains this exact parent separately from its new candidate.

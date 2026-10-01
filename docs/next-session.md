@@ -120,3 +120,17 @@ Generation004 continuation completed: latest selected checkpoints/third-model/ru
 ## First hosted training requested — 2026-10-01
 
 User requests hosted5000latest-best vs best, conversion/training candidate, download parent/candidate/logs, then local100candidate-parent. models/best.pt prepared from third-model best.pt; Bunny receives workflow extension only. Primary to commit/push and dispatch seed90003/workers4 after handoff. No remote job yet. Future desired hosted1000evaluation recorded as separate next stage, no automatic promotion.
+
+- First hosted job submitted: https://github.com/pajh/othello/actions/runs/36841281392, commit669a1fd,5000games/seed90003/workers4/models/best.pt. Observed in_progress. Check status, download exact artifact and review saved summaries via Luna; then user-run100candidate/exact-downloaded-parent. No outcome or promotion yet.
+
+## Hosted artifacts downloaded — 2026-10-01
+
+Run36841281392 successful, downloaded runs/github-first/. Parent runs/github-first/runs/github-selfplay/parent.pt; candidate runs/github-first/checkpoints/github-candidate/best.pt. Disposable candidate clone now selects hosted candidate, canonical uses explicitparentenv. Next user-run100head-to-head with matchingR2/T0.05; candidate strength/promotion unresolved. Hostedcollection161.608s,training5.693s,bestepoch1val0.198206vsloadedparent0.205014same split. C plan FP32initial plus earlyFP16weight-storage comparison.
+
+- Hostedcandidate local100vs exactparent complete54/4/42 (56%score),seed93001,zero forfeits. Batch supports apparent smaller gain than prior65%,65%, but slowdown/plateau uncertain. Raw runs/github-candidate-vs-parent/run-2cc0170b01414cad97143493008d2925. No repositorybest replacement/new experiment.
+
+- Hostedcandidate greedy vs random achieved100/0/0 in100games,seed93002,zero forfeits. Raw runs/github-candidate-greedy-vs-random/run-69af4aeefd634e81b1a9b0ca0037b009. Candidate weights at runs/github-first/checkpoints/github-candidate/best.pt; greedycopy NN-EVAL-002-R0-T0. C plan design-only with FP32initial/earlyFP16comparison.
+
+## Current hosted round — 2026-10-01
+
+Latest commands: docs/command-guide.md. User authorized full push and Generation008 hosted run: models/best.pt now first-hosted candidate,5000games seed90004/workers4,8way symmetry after whole-game split,continued weights/newAdam/patience1,1000candidate-parent evaluation seed190004. Candidate remains a download pending user adoption. See status.md latest entries for dispatch URL/results.

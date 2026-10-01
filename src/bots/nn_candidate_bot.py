@@ -132,7 +132,7 @@ def _load_model():
     Called once at import time. Errors name the environment variable and the
     path, so a setup mistake is obvious before any game starts.
     """
-    raw_path = '/home/paul/dev/othello/checkpoints/third-model/run-selfplay-5000/best.pt'  # THROWAWAY evaluation clone; develop only nn_bot.py.
+    raw_path = '/home/paul/dev/othello/runs/github-first/checkpoints/github-candidate/best.pt'  # THROWAWAY evaluation clone; develop only nn_bot.py.
     if not raw_path or not raw_path.strip():
         raise RuntimeError(
             '%s is not set: name the checkpoint to play with, for example '

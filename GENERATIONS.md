@@ -174,3 +174,155 @@ Permanent chronological record. Raw logs belong in run artifacts; keep this hist
 ### Hosted pipeline preparation — 2026-10-01
 
 - Bunny extended existing workflow to collect, convert whole-game80/20 seed12345, train from selected parent weights with fresh Adam, and upload parent/candidate/data/reports. Latest third-model best.pt copied to models/best.pt; original retained. Reports static YAML/shell/interface checks passed. Hosted runtime unknown; primary preparing user-requested first remote5000run (seed90003/workers4). No remote evaluation or promotion.
+
+## Generation 005 — 2026-10-01 — First GitHub-hosted self-play and training
+
+- User requested first hosted5000latest-best collection, conversion, candidate training and downloads for local100parent comparison. Primary committed/pushed669a1fd (including prior local ff30fa2) and dispatched selfplay.yml on master.
+- Run https://github.com/pajh/othello/actions/runs/36841281392, workflow_dispatch, seed90003,games5000,workers4,checkpointmodels/best.pt (copy of third-model selected best.pt). Status observed in_progress; results/timing unknown.
+- Workflow stages: collect NN-004-R2-T0.05 vs itself, whole-game80/20 conversion seed12345, continued parent weights with new Adam/current defaults into checkpoints/github-candidate, upload parent/candidate/raw/data/reports. No remote evaluation or automatic promotion.
+- Next after completion: download artifact, Luna saved-report review, local100candidate-vs-exact-parent with matching R2/T0.05. Hosted1000evaluation remains later desired stage. No downloads/local match yet.
+
+### First hosted run completed/downloaded — 2026-10-01
+
+- GitHub run36841281392 concluded success; collection/conversion/training/upload passed. Job09:13:16–09:17:30UTC (~254s inclusive setup). Downloaded artifactselfplay-36841281392-1 to runs/github-first/.
+- Saved match report:5000normal0forfeits,seed90003,4workers/1numerical thread,2377/2444/179outcomes,CLI161.608s (2m41.6s). Split4000traininggames/241,811rows,1000validationgames/60,502rows.
+- Saved training report:third-model parent weights/fresh Adam,initial validation0.205014,bestepoch1validation0.198206 (~3.3%lower same split),4epochs/patience,total5.693s,finalvalidation0.215063. No playing-strength conclusion yet.
+- Exact downloaded parent runs/github-first/runs/github-selfplay/parent.pt, candidate runs/github-first/checkpoints/github-candidate/best.pt; originals preserved. Disposable clone recreated via copy+one path-line edit to hostedcandidate; local100candidate-parent command ready but unrun. Luna saved-report review requested. No promotion.
+
+### Hosted candidate versus exact parent locally — 2026-10-01
+
+- User ran100games,seed93001,workers1,alternating colours,matching NN-004-R2-T0.05. Candidate disposable clone selects runs/github-first/checkpoints/github-candidate/best.pt; canonical parent selected exact downloaded runs/github-first/runs/github-selfplay/parent.pt.
+- User CLI result100normal,0forfeits,54candidate wins/4draws/42parent wins,draw-adjusted score56%. Raw run runs/github-candidate-vs-parent/run-2cc0170b01414cad97143493008d2925; root run-summary.txt. No extra matches or replay by agents.
+- Successive parent-comparison scores65%,65%,56%. Latest batch favours candidate but is compatible with a smaller gain or sampling variation; no established plateau/definite slowing trend from these100-game batches. User described apparent tailing off. No additional run or repository-best replacement automatically performed.
+
+### Hosted candidate greedy versus random — 2026-10-01
+
+- User ran100games,seed93002,workers1,alternating colours. NN-EVAL-002-R0-T0 disposable greedy bot selects downloaded hostedcandidate runs/github-first/checkpoints/github-candidate/best.pt versus RAND-001.
+- User CLI result100normal,0forfeits,100NNwins/0draws/0losses. Raw run runs/github-candidate-greedy-vs-random/run-69af4aeefd634e81b1a9b0ca0037b009; root run-summary.txt. No extra games or replay by agents.
+- Random-bot milestone achieved in this100-game batch, not a universal win guarantee. Hostedcandidate parent result54/4/42 used matchingR2/T0.05. No model precision/export/C test yet.
+
+## Generation 006 — 2026-10-01 — Random C interface proof of concept
+
+- User selected random-first C bot, CG loop/random score(), Python subprocess adapter and make build; NN headers/export/decompression/combine deferred. Files c/bot.c, src/bots/c_random_bot.py, Makefile, docs/c-random-bot.md. No trained model in this infrastructure iteration.
+- Bunny reports clean C11 build, one local game versus RAND-001 at seed94001: normal termination, draw, zero forfeits. Child handled31turns then reaped; no lingering C process reported. Raw smoke copied from disposable work/c-random-smoke to retained runs/c-random-smoke. No additional games by primary.
+- Primary read CLI/wrapper: normal factory path keeps one C child per seat/game; module-level legacy play makes a temporary child per call. Referee Cell.java maps a+x/y+1; Referee.java sends increasing-y board rows. Confirms a1 top-left; earlier unverified note superseded. Exceptions from malformed child responses become rig forfeits (handoff wording implying otherwise was inaccurate).
+- User-run100 alternating-colour games against Python random remains unrun; seed94001, workers1, runs/c-random-vs-random. Actual CG submission/timing unknown. No NN work or publication. User clarified future Bunny prompts must contain one concrete deliverable at a time.
+
+### Quiet C logging — 2026-10-01
+
+- User observed per-move terminal spam. Bunny T055 changed only c/bot.c (VERSION002): removed startup/player/turn/pass chatter, retained actual errors and stdout protocol. Python adapter unchanged C-RAND-001. Clean make bot reported, no game/probe rerun. No new strength result or CG execution.
+
+### User local batch and actual CodinGame run — 2026-10-01
+
+- User reports clean local random comparison49–44, no terminal spam; refers to agreed100games. Exact draw/forfeit totals not pasted, so not invented.
+- User submitted self-contained c/bot.c to actual CG Othello IDE, Wood2. Screenshot shows normal full-board end result: PaulH14discs, BOSS1 50discs,60actions, and a BOSS1 forced pass before final moves. User confirms real-runner mechanics work. No timeout or invalid-action failure reported.
+- This exercises C compilation/execution and ordinary CG stdin/stdout move protocol in one real game. It establishes the intended random-bot interface milestone, not strength or comprehensive game-rule validation. Future NN forward.h, decompress.h, generated model.h and combine remain unimplemented.
+
+### Standalone C neural forward smoke — 2026-10-01
+
+- T056 Bunny delivered header-only c/nn.h:49537float blob and3dense descriptors,128->256->64->1 ReLU/ReLU/sigmoid, element offsets matching PyTorch rows. setup allocates first input/per-layer outputs once, links buffers, leaves blob intact. forward copies input and uses descriptor loop/expf, no allocations. No production teardown or bot integration.
+- Standalone c/test_nn.c random-data smoke reports256calls, min0.490070/max0.498135/mean0.495070, zero nonfinite/out-of-range values, exit0. Clean C11 ASan/UBSan build and detect_leaks=1 run reported no findings; test-only cleanup frees owned buffers once. Random parameters intentionally small; no numerical PyTorch agreement established.
+- Next user-selected stage T057: actual trained-model export/load and10,000random-input C/PyTorch comparison. Not implemented/dispatched/run. No new trained model.
+
+### Trained parameter blob export — 2026-10-01
+
+- T057a exporter scripts/export_nn_blob.py reads CPU weights-only checkpoint; concatenates network.0/2/4 weight/bias arrays in agreed order, row-major output/input, writes raw NumPy< f4 (little-endianFP32; dtype `<f4`). Source runs/github-first/checkpoints/github-candidate/best.pt.
+- Bunny reports one export to runs/c-model-export/model.bin and blob-layout.txt, actual size198148bytes matches49537elements. Size was the sole check. No C loading, numerical comparison, compression or generated header; numerical correctness remains untested.
+
+### Real-board PyTorch reference corpus — 2026-10-01
+
+- User chose actual valid replay-derived boards rather than arbitrary random vectors for next C comparison. Luna T057b implemented scripts/generate_nn_test_csv.py and explicitly user-authorized run selecting10000rows without replacement, seed12345, from runs/github-first/runs/github-selfplay/run-a618633805de46679deccb20377b348a/dataset/validation.npz. Reference checkpoint runs/github-first/checkpoints/github-candidate/best.pt, matching exported parameter blob.
+- CSV inputs-and-scores.csv under runs/c-forward-corpus contains128row-major own/opponent inputs plus PyTorch score (.9g). Independent sanity check passed10000rows/129columns and matched selected dataset inputs/plane order; all binary, non-overlapping, scores finite0..1, range0.000384106941–0.999888301. Summary corpus-summary.txt retained. No new games or training.
+- C blob load/CSV reading/numerical comparison is still next separate task, not run.
+
+### C real-model comparison rig built — 2026-10-01
+
+- T057c Bunny delivered c/test_nn_compare.c and isolated Make target. Exact blob read into Model.blob, setup after load, CSV inputs/expected scores, fixed absdiff<=1e-5+1e-5*abs(reference), summary/errors and test-only buffer cleanup.
+- Clean sanitizer-enabled C11 build reported. Numerical10000position comparison and runtime sanitizer coverage explicitly unrun; no score agreement or PASS claimed. User launch command uses runs/c-model-export/model.bin and runs/c-forward-corpus/inputs-and-scores.csv, report runs/c-forward-check/forward-summary.txt.
+
+### Comparison startup byte-order failure and correction — 2026-10-01
+
+- First user run failed before blob load: host falsely rejected as not little-endian binary32. Primary source read found reversed byte test expected3f/80/00/00(big-endian). I008 Bunny corrected to00/00/80/3f with early4byte-size guard; one clean rebuild reported. Failed attempt preserved here; no numerical comparison reached and full rerun remains user-run/pending.
+
+### Real-model C/PyTorch numerical comparison passed — 2026-10-01
+
+- User reran sanitizer-enabled build/test-nn-compare after I008 byte-order correction, loading runs/c-model-export/model.bin (49537floats/198148bytes) and runs/c-forward-corpus/inputs-and-scores.csv. Report retained runs/c-forward-check/forward-summary.txt.
+-10000rows read/compared; fixed tolerance absdiff<=1e-5+1e-5*abs(reference). Mean absolute error1.61441334e-8, maximum2.38418579e-7; worst row1874 C0.543397963/reference0.543397725. Zero outside tolerance, zero nonfinite/range failures, RESULT PASS. User output shows no sanitizer diagnostics with detect_leaks=1.
+- Supports correctness of real FP32 export/layout/setup/forward on this corpus; small rounding differences observed. No C move application/neural-bot integration, compression, FP16 experiment or larger corpus executed. Future work remains separate user-selected tasks.
+
+### Submission-size constraint and compression sizing — 2026-10-01
+
+- User confirms CG source maximum100000characters. Primary read-only Python probe on exported current FP32 blob, zlib raw DEFLATE level9:198148rawbytes ->184328compressedbytes ->245772Base64characters (Base85230410). FP16 rounded weight-storage sizing only:99074rawbytes ->91799compressedbytes ->122400Base64characters (Base85114749). No generated payload/export change or inference/strength test.
+- These sizes exclude C decoder/bot/header overhead. Proposed losslessFP32 and FP16+Base64 paths cannot fit this limit; compression/precision/encoding decision unresolved. No compression implementation has been dispatched.
+
+## Generation 007 — 2026-10-01 — Shared256-value codebook quantization experiment
+
+- User chose nonuniform256FP32table plus one-byte indices, weights/biases together; model75000/code25000character targets, hardtotal100000. Existing scikit-learn1.9.1 installed by primary into venv, no environment recreated. No retraining or original-weight changes.
+- Bunny T058 scripts/quantize_nn_blob.py fit KMeans256clusters, seed12345,n_init1,max_iter300,algorithmlloyd on original exported blob. CentersFP32; nearest stored-center reassignment corrected3of49537differences versus fit labels.
+- Artifacts runs/c-model-quantized/codebook.bin1024bytes, indices.bin49537bytes, expandedmodel.bin198148bytes, quantization-summary.txt. Combinedtable+indices50561bytes, Base6467416chars before header/compression. Weight MAE0.000450010535,max0.00786840916,MSE3.21645363e-7.
+- One quantization run reported; original blob/CSV preserved. User existing Ccomparison against original10000real-board PyTorch scores remains unrun. Fixed FP32 tolerance unchanged; its failure count will measure quantization drift, not automatically decide acceptability. No Ctabledecoder or playing-strength result/adoption.
+
+### Shared-codebook score drift measured — 2026-10-01
+
+- User ran existing sanitizer Ccomparison on expanded quantized runs/c-model-quantized/model.bin against original10000real-board reference CSV.10000read/compared, meanabsolute error0.000824199575,max0.00866732001,worstrow5577 C0.452201247/reference0.460868567.9780outside unchanged1e-5+1e-5relative gate,0nonfinite/range failures, RESULT FAIL. No sanitizer diagnostics shown. Saved runs/c-quantized-check/forward-summary.txt.
+- This gate measures FP32implementation parity, so lossy quantization fail was expected. Measured drift small on this corpus (~0.0824percentagepointmean/~0.8667pointmax), promising but move-ranking/playing-strength effect untested. No tolerance modified, quantized model adopted, further matches or Cdecoder implementation.
+
+### Quantized payload compression decision evidence — 2026-10-01
+
+- User reframed acceptance around strength of deployable quantizedbot, not oversizedFP32/hypothetical smaller model. Fullprecision comparison can be diagnostic if quantizedbot fails later; no such strength failure currently observed.
+- Primary read-only zlib rawDEFLATE level9 probe of actual codebook+indices:50561rawbytes,67416Base64chars; compressed48557bytes,64744Base64chars. Saving2672chars(~3.96%) before added Cdecoder/format code. Individually codebook1024->1005bytes (28Base64char saving), indices49537->47451bytes (2784char saving); separate streams were sizing only, no format adoption.
+- Plain quantized Base64payload already fits75000modelbudget with7584chars for header metadata/string syntax. Decoder would need below2672incrementalchars for net reduction using combinedstream. Startup not measured. Primary recommends omitting DEFLATE and retaining Base64+codebook expansion/length/checksum; not yet user-approved or implemented.
+
+### Uncompressed Base64 header generated — 2026-10-01
+
+- User agreed omitcompression. BunnyT059a scripts/embed_nn_codebook.py generated runs/c-model-embedded/model.h72959ASCIIcharacterswithin75000budget; Base64payload67416characters,50561decodedbytes(codebookthenindices). CRC32packeddca2a0e3/expandedFP322bce1e0e.
+- OnePythonruncheckedactualheaderstringsdecodeexactsourcepayload; expansionbyteexactmatchespriorquantizedmodel198148bytes. No Cconsumptionyet. SeparateauthorizedT059b Cdecoder/reconstructiontask dispatchedafterhandoff, keeps bot.c/nn.h untouched.
+
+### Embedded Base64 C reconstruction passed — 2026-10-01
+
+- T059b Bunny delivered c/model_decode.h load_embedded_model(Model*,unsigned char**payload_storage), c/test_nn_embedded.c and isolatedMake target. One startupmalloc, Base64decode/lengthCRCchecks, memcpycodebookexpansionintoModel.blob, decodedCRC; setupcallerowned, no compression or productionteardown.
+- FirstattemptrejectedpayloadbecausefinalBase64padding arithmetic reversed (one=means2bytes). Bunnycorrectedobservedbug and sanitizedcheckthenpassed:memcmpbyteidenticaltopriorquantizedmodel,50561payloadbytes/67416encodedchars/198148decodedbytes, CRC32packeddca2a0e3/expanded2bce1e0e. Outputruns/c-embedded-check/model.bin; noASanUBSan/leakfindings reported. Failurepreservedhere.
+- Full10000score comparison notrun; usercommandexistingtest-nn-compare withnewreconstructedbloband originalcorpus. Expectsamequantizedmetrics. Bot/nn.h remainunchanged.
+
+### Single-pass CG submission scrunch completed — 2026-10-01
+
+- T060 scripts/scrunch.py implements userrule: mainquotedinclude list determines pastedheaderorder; quotedincludesremovedfromheaders,standardincludes/guardsretained. Lexicalcommentstrip preservesstring/charliteralcontents and separates tokens; nootherminification/recursion.
+- Bunnyreportscurrentrandom c/bot.c submission3816ASCIIchars/bytes under100000, exactsource cleancompileandone-turnprotocolprobeexit0. Retained runs/c-submission/submission.c/size-summary.txt. Scratchall3realheadersexpansion81486chars,zeroquotedincludes,clean-lmcompile; scratchdeleted, noNNbotwired.
+- Forum/GCCresearch recommends submissionprefix #pragma GCC optimize("O3,inline"). No specialcommentdirective established. CPUtune differs frommarch; noarchitecture/AVXassumptionorfast-math adopted. Pragmainjectionnotimplementedyet. Neuralmoveapplication/scoring remainsfuturetask.
+
+### Greedy quantized neural C bot wired — 2026-10-01
+
+- T061 bot.c C-NN003 includesnn.h/model.h/model_decode.h, modelstartupdecode/setup, retainsCGboard/applieseachcandidateincludingflips,actorown/opponentplanes,forwardgreedytiesearliest. Noopeningrandomness/sampling or perturnallocation. Makebotincludesmodelpath/links-lm,existingbuild/c-random-botfilename retainedforadapter.
+- Bunnyreportsexplicitgcc-O2-Wall-Wextracleanbuildandoneintegrationgame seed95001:normal0forfeits,60positions,NNblack44vsrandomwhite20,childreaped. Run runs/c-neural-smoke/run-9f8f704fca994448a3acbea1756915c9/. No strengthclaimfromonegame. WrapperreportIDstaleC-RAND001, deliberatelyuntouchedthisscope.
+- SeparateT062O3inlineprefix andactualneuralCGscrunch/size/exactgcccompile dispatched. NoCGneuralrunyet.
+
+### Full neural submission packaged and compiled — 2026-10-01
+
+- T062 scrunch.py prepends #pragma GCC optimize("O3,inline") afterexpansion/commentstrip andcountsitinfinalsize. Noarch/AVX/fastmathorotherminification. InitialscripteditlostnewlinecausingSyntaxError,correctedbeforegeneration.
+- ActualgreedyC-NN003quantizedsubmission retained runs/c-submission/submission.c88256ASCIIcharacters/bytes,11744below100000limit; firstlinepragma,zeroquotedlocalincludes. Exactsourcegcc-C11-O2-Wall-Wextra-lmbuildclean, executablebuild/c-submission87184bytes perhandoff.
+- No game/numericaltestofthisexactO3packagedbuildyet; T061neuralintegrationonegamepreviouslypassed. ActualCGneuralexecution/strengthunknown. Headerandmodeldecodedtestedpreviously. WrapperstillreportsC-RAND001andneedsseparateidentityrevisionbeforemeaningfullocalreports.
+
+### Comment-only lines removed without other minification — 2026-10-01
+
+- T063 scrunch lexicalstrip trackscomment/codeperline, dropscomment-onlylinesincludingnewlines, preservesintentionalblanklines/codeformat/literals. Firsteditdouble-emittedcode-line newlines, growingfile89196chars; focusedcheckcaughtbug, correctedbeforefinalgeneration.
+- Regenerated actualneural runs/c-submission/submission.c88000ASCIIchars/bytes,12000belowlimit (previous88256). O3inlinefirstline/zeroquotedincludesremain; exactgcc-C11-O2-Wall-Wextra-lmcompileclean, executable87184bytes reported. No post-editgame/numericalrun orCGneuralresultyet.
+
+### Actual comment-strip bug fixed and output inspected — 2026-10-01
+
+- UsernoticedT063stilllookedsame. Primaryreadactual88000charfile/1388lines/321blank,first35linesblankafterpragma. SourcebugI009resetlinecommentflagwithoutremarkingblockinteriorlines, contradictingpriorhandoffclaim. NarrowBunnyfixmarkscommentstateeachbranchentry, preservescodeflags/intentionalblanklines/literals.
+- Focusedactualmultilinechecksreportedpassed. Regeneratedsubmission87775chars/bytes,1163lines/96blank,zeroquotedincludes; exactGCCcompilecleanreported. Primaryindependentlyreadcurrentfilecounts/head:pragmafirstline,stdioincludeatline3,NNguardatline8, obsoleteblankheadgone. No newgame/numericaltest.
+
+### Neural submission running in actual CG league — 2026-10-01
+
+- Userconfirms packagedgreedyquantizedneuralbot isplayingCodinGameOthelloWood2. Unlikeearlierrandomproof,thisusesembeddedcodebookmodel/decoder/forward/candidateflips. No matchcounts/leaguepromotion/performancegiven; do notinferstrength. Userrequestsoneconsolidatedcommandguide; docs-onlyLuna reviewtaskT064started.
+
+### Command guide and first neural arena placement — 2026-10-01
+
+- T064 documentation consolidated in docs/command-guide.md and linked from README/documentation index. Current scripts/flags/Makefile/workflow checked; no jobs run. Current hosted candidate and older committed models/best.pt distinguished; historical helper IDs/paths and stale C wrapper identity documented.
+- User reports quantized greedy neural submission rank 78 in Wood 2 and a convincing IDE boss win, without promotion. This is initial arena evidence, not a measured quantization-strength comparison. CodinGame describes promotion as ranking above the boss after arena matches, distinct from an IDE head-to-head win.
+
+## Generation 008 — 2026-10-01 — hosted symmetry training and parent evaluation
+
+- User authorized full commit/push and next hosted round: latest selected first-hosted candidate copied from runs/github-first/checkpoints/github-candidate/best.pt to models/best.pt. Prior parent/candidate artifacts remain retained.
+- Plan:5000 self-play games, seed90004,4workers,R2/T0.05; whole-game80/20split seed12345, then all8board symmetries in each split; continue weights/newAdam/defaultlr/batch, patience1/max30epochs;1000 candidate-vs-exact-parent games alternating/R2/T0.05/workers4/evaluationseed190004. No automatic promotion.
+- T065 synthetic transforms/labels/schema checks passed per handoff after correcting spatial-axis bug. T066 workflow static checks passed per handoff; primary review caught duplicateWORKERS key, correction requested before dispatch. Real augmented conversion, training and hosted evaluation unrun at this point.

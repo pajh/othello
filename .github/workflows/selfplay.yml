@@ -3,10 +3,11 @@ name: NN self-play training
 # Manual only. This workflow is never triggered by a push, a pull request, a
 # schedule or a repository event: the user starts it from the Actions page and
 # chooses the seed, game count, worker count and parent checkpoint. It runs one
-# job that collects self-play games, converts them to a dataset and trains a
-# candidate model continuing the selected parent's weights. Nothing is promoted,
-# committed, pushed or published: the candidate only exists in the downloaded
-# artifact until the user decides otherwise.
+# job that collects self-play games, converts them with eight-way symmetry
+# expansion, trains a candidate continuing the selected parent's weights, and
+# then evaluates that candidate against the exact parent copy over 1000
+# games. Nothing is promoted, committed, pushed or published: the candidate only
+# exists in the downloaded artifact until the user decides otherwise.
 
 on:
   workflow_dispatch:
@@ -38,7 +39,7 @@ permissions:
 
 jobs:
   collect:
-    name: Collect, convert and train a candidate
+    name: Collect, convert, train and evaluate a candidate
     runs-on: ubuntu-24.04
     steps:
       - name: Check out the selected revision
@@ -125,19 +126,24 @@ jobs:
           WORKERS: ${{ inputs.workers }}
           CHECKPOINT: ${{ inputs.checkpoint }}
         run: |
+          set -o pipefail
           python scripts/nn_selfplay_collect.py \
             --games "$GAMES" \
             --seed "$SEED" \
             --workers "$WORKERS" \
             --checkpoint "$CHECKPOINT" \
-            --output-dir runs/github-selfplay
+            --output-dir runs/github-selfplay \
+            2>&1 | tee runs/github-selfplay/collection.log
 
       # Finds the one run directory the collector just created and writes its
       # path to $GITHUB_OUTPUT, so the training step uses the same run without
-      # searching again. No helper script and no second lookup.
+      # searching again. No helper script and no second lookup. --symmetries
+      # augments each split to eight rows per sample after the whole-game split,
+      # so games still stay whole and the two splits stay separate.
       - name: Convert the collected run to a dataset
         id: convert
         run: |
+          set -o pipefail
           mapfile -t runs < <(find runs/github-selfplay -mindepth 1 -maxdepth 1 -type d -name 'run-*')
           if [ "${#runs[@]}" -ne 1 ]; then
             echo "expected exactly one run directory, found ${#runs[@]}" >&2
@@ -148,35 +154,211 @@ jobs:
           python -m training.convert \
             --input "$run" \
             --output-dir "$run/dataset" \
-            --seed 12345
+            --seed 12345 \
+            --symmetries 2>&1 | tee runs/github-selfplay/conversion.log
 
-      # Defaults unchanged (30 epochs, batch 256, Adam 0.001, seed 12345,
-      # patience 3). --initial-checkpoint loads the parent's weights only with a
-      # fresh Adam; the parent file itself is never written. The output
+      # Everything else is the agreed default (30 epochs, batch 256, Adam
+      # 0.001, seed 12345) except patience, which the user set to 1 so training
+      # stops at the first epoch that fails to improve validation loss.
+      # --initial-checkpoint loads the parent's weights only with a fresh Adam
+      # and selects best.pt; the parent file is never written. The output
       # directory must not exist beforehand, so it is not created here.
       - name: Train a candidate from the parent weights
         env:
           RUN: ${{ steps.convert.outputs.run }}
           CHECKPOINT: ${{ inputs.checkpoint }}
         run: |
+          set -o pipefail
           python -m training.train \
             --dataset-dir "$RUN/dataset" \
             --output-dir checkpoints/github-candidate \
-            --initial-checkpoint "$CHECKPOINT"
+            --initial-checkpoint "$CHECKPOINT" \
+            --patience 1 2>&1 | tee runs/github-selfplay/training.log
+
+      # Evaluation needs the candidate playing against the exact parent weights
+      # this run started from, so the candidate is written into a disposable bot
+      # module that is a byte-for-byte copy of the canonical nn_bot.py with one
+      # line changed: where it reads the checkpoint environment variable, it
+      # names the candidate file instead. Nothing else changes, so both seats
+      # play by the same code path with the same R2/T0.05 settings and the same
+      # display ID; the checkpoint paths in the reports are what distinguish the
+      # weights. This module exists only inside the runner.
+      - name: Create the disposable candidate bot module
+        env:
+          CANDIDATE: checkpoints/github-candidate/best.pt
+        run: |
+          set -o pipefail
+          python - <<'PY' 2>&1 | tee runs/github-selfplay/candidate-module.log
+          import os
+          from pathlib import Path
+
+          source = Path('src/bots/nn_bot.py')
+          target = Path('src/bots/nn_hosted_candidate_bot.py')
+          candidate = Path(os.environ['CANDIDATE'])
+          if not candidate.is_file():
+              raise SystemExit('candidate checkpoint missing: %s' % candidate)
+          resolved = str(candidate.resolve())
+
+          original = ('    raw_path = os.environ.get(CHECKPOINT_ENV)\n')
+          replacement = (
+              '    # THROWAWAY hosted-evaluation snapshot: hardcoded candidate\n'
+              '    # checkpoint instead of OTHELLO_NN_CHECKPOINT.\n'
+              '    raw_path = %r\n' % resolved
+          )
+
+          text = source.read_text(encoding='utf-8')
+          count = text.count(original)
+          if count != 1:
+              raise SystemExit(
+                  'expected exactly one %r line in %s, found %d'
+                  % (original.strip(), source, count))
+          target.write_text(
+              '"""THROWAWAY hosted-evaluation snapshot of bots/nn_bot.py.\n\n'
+              'Generated in the runner only, for one evaluation, by copying the\n'
+              'canonical bot byte for byte and replacing the single checkpoint\n'
+              'selection line so this module plays the freshly trained hosted\n'
+              'candidate while bots/nn_bot.py keeps playing the parent.\n\n'
+              'Do not edit this file and do not keep it: all learned-bot work\n'
+              'belongs in src/bots/nn_bot.py.\n"""\n\n'
+              + text.replace(original, replacement, 1),
+              encoding='utf-8')
+          print('wrote %s from %s' % (target, source))
+          print('candidate checkpoint: %s' % resolved)
+          PY
+
+      # Candidate against the exact parent copy from this run, alternating
+      # colours, at a fresh seed offset from the collection seed so the
+      # evaluation never reuses the collection's game sequence. Collection is
+      # bookkeeping, so the summary is the source of every number reported.
+      - name: Evaluate the candidate against the parent
+        env:
+          GAMES: ${{ inputs.games }}
+          SEED: ${{ inputs.seed }}
+          WORKERS: ${{ inputs.workers }}
+        run: |
+          set -o pipefail
+          eval_seed=$((SEED + 100000))
+          echo "evaluation seed: $eval_seed"
+          mkdir -p runs/github-evaluation
+          echo "evaluation seed: $eval_seed" > runs/github-evaluation/evaluation-seed.txt
+          OTHELLO_NN_CHECKPOINT="$PWD/runs/github-selfplay/parent.pt" \
+            python -m rig.cli \
+              --bot1 bots.nn_hosted_candidate_bot \
+              --bot2 bots.nn_bot \
+              --games 1000 \
+              --seed "$eval_seed" \
+              --workers "$WORKERS" \
+              --output-dir runs/github-evaluation \
+              2>&1 | tee runs/github-evaluation/evaluation.log
+
+      # Reads the rig's own run-summary.txt, so every number here comes from a
+      # real record count. An interrupted or failed batch is reported as such
+      # rather than dressed up as a completed evaluation.
+      - name: Summarise the evaluation
+        env:
+          CANDIDATE: checkpoints/github-candidate/best.pt
+          PARENT: runs/github-selfplay/parent.pt
+        run: |
+          set -o pipefail
+          python - <<'PY' 2>&1 | tee runs/github-evaluation/evaluation-summary-build.log
+          import os
+          import re
+          from pathlib import Path
+
+          summary = Path('runs/github-evaluation/run-summary.txt')
+          seed_text = Path('runs/github-evaluation/evaluation-seed.txt')
+          seed = (seed_text.read_text(encoding='utf-8').split(':')[-1].strip()
+                  if seed_text.is_file() else 'unknown')
+
+          def value(text, label):
+              match = re.search(r'^%s: (-?\d+)$' % re.escape(label), text,
+                                re.MULTILINE)
+              return int(match.group(1)) if match else None
+
+          lines = [
+              'Hosted candidate versus parent evaluation',
+              '========================================',
+              '',
+              'candidate checkpoint: %s' % os.environ['CANDIDATE'],
+              'parent checkpoint:    %s' % os.environ['PARENT'],
+              'both loaded from:     runs/github-evaluation/run-summary.txt',
+              'games requested: 1000, alternating colours',
+              'workers: %s' % os.environ.get('WORKERS', 'recorded in run-summary.txt'),
+              'bot settings: NN R2/T0.05, fresh create_player per seat per game',
+              'evaluation seed: %s' % seed,
+              'code ID: both seats report NN-004-R2-T0.05; the checkpoint paths',
+              '         above are what distinguish the two sets of weights',
+              '',
+          ]
+          if not summary.is_file():
+              lines += ['RESULT: INCOMPLETE, run-summary.txt was not written',
+                        'The evaluation did not produce a usable summary.']
+          else:
+              text = summary.read_text(encoding='utf-8')
+              state = value(text, 'state') if 'state: ' in text else None
+              state_text = (re.search(r'^state: (.+)$', text, re.MULTILINE)
+                            or [None, 'unknown'])[1].strip()
+              completed = value(text, 'completed games')
+              requested = value(text, 'requested games')
+              normal = value(text, 'normal terminations')
+              forfeits = value(text, 'forfeits')
+              draws = value(text, 'draws')
+              wins1 = None
+              wins2 = None
+              m1 = re.search(r'^wins, bot 1 \(.*\): (-?\d+)$', text, re.MULTILINE)
+              m2 = re.search(r'^wins, bot 2 \(.*\): (-?\d+)$', text, re.MULTILINE)
+              if m1:
+                  wins1 = int(m1.group(1))
+              if m2:
+                  wins2 = int(m2.group(1))
+              lines += [
+                  'run state: %s' % state_text,
+                  'requested games: %s' % requested,
+                  'completed games: %s' % completed,
+                  'normal terminations: %s' % normal,
+                  'forfeits: %s' % forfeits,
+                  'draws: %s' % draws,
+                  'candidate (bot 1) wins: %s' % wins1,
+                  'parent (bot 2) wins: %s' % wins2,
+                  '',
+              ]
+              usable = (state_text == 'completed' and completed
+                        and completed == requested and forfeits == 0)
+              if usable:
+                  score = (wins1 + 0.5 * draws) / completed
+                  lines += [
+                      'candidate score (wins + 0.5 * draws) / completed: %.4f'
+                      % score,
+                      'RESULT: COMPLETE',
+                  ]
+              else:
+                  lines += [
+                      'candidate score: not computed, the batch was not a clean',
+                      'complete evaluation (state %s, completed %s of %s, '
+                      'forfeits %s)' % (state_text, completed, requested, forfeits),
+                      'RESULT: INCOMPLETE',
+                  ]
+          Path('runs/github-evaluation/evaluation-summary.txt').write_text(
+              '\n'.join(lines) + '\n', encoding='utf-8')
+          print('\n'.join(lines))
+          PY
 
       # Runs even when a step fails, so the completed games, metadata,
-      # provenance, dataset and reports are retained rather than lost, together
-      # with any candidate checkpoint that was produced. Repository-default
-      # retention; the artifact name is unique per attempt, so nothing is
-      # overwritten.
-      - name: Upload collection, dataset and candidate
+      # provenance, dataset, logs and reports are retained rather than lost,
+      # together with any candidate checkpoint that was produced, the evaluation
+      # games and reports, and the generated candidate module for provenance.
+      # Repository-default retention; the artifact name is unique per attempt,
+      # so nothing is overwritten.
+      - name: Upload collection, dataset, candidate and evaluation
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: selfplay-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             runs/github-selfplay/
+            runs/github-evaluation/
             checkpoints/github-candidate/
+            src/bots/nn_hosted_candidate_bot.py
           if-no-files-found: warn
 
       - name: Job summary
@@ -189,10 +371,11 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN: ${{ steps.convert.outputs.run }}
           JOB_STATUS: ${{ job.status }}
         run: |
           {
-            echo '## NN self-play collect, convert and train'
+            echo '## Hosted self-play, conversion, training and evaluation'
             echo
             echo "Job status: $JOB_STATUS"
             echo "Requested: $GAMES games, seed $SEED, $WORKERS workers"
@@ -200,12 +383,28 @@ jobs:
             echo "Run page (artifact downloads from here): https://github.com/$REPOSITORY/actions/runs/$RUN_ID"
             echo "Artifact name: selfplay-$RUN_ID-$RUN_ATTEMPT"
             echo
+            echo 'Conversion uses eight-way symmetry expansion; training uses'
+            echo 'patience 1 and selects best.pt. Evaluation plays the candidate'
+            echo 'against the exact parent copy at seed + 100000.'
+            echo
             echo 'No model is promoted by this workflow. The candidate is only'
             echo 'in the artifact until the user chooses to keep or replace it.'
             echo
           } >> "$GITHUB_STEP_SUMMARY"
-          for file in runs/github-selfplay/run-summary.txt runs/github-selfplay/match-check.txt runs/github-selfplay/dataset/conversion-summary.txt checkpoints/github-candidate/training-summary.txt; do
-            if [ -f "$file" ]; then
+          # The dataset lives inside the run directory the collector created,
+          # so the conversion summary is looked up there rather than at a fixed
+          # path. Every file is guarded, so a failed stage contributes nothing.
+          conversion_summary=""
+          if [ -n "$RUN" ] && [ -f "$RUN/dataset/conversion-summary.txt" ]; then
+            conversion_summary="$RUN/dataset/conversion-summary.txt"
+          fi
+          for file in runs/github-selfplay/run-summary.txt \
+                      runs/github-selfplay/match-check.txt \
+                      "$conversion_summary" \
+                      checkpoints/github-candidate/training-summary.txt \
+                      runs/github-evaluation/run-summary.txt \
+                      runs/github-evaluation/evaluation-summary.txt; do
+            if [ -n "$file" ] && [ -f "$file" ]; then
               {
                 echo "<details><summary>$(basename "$file")</summary>"
                 echo

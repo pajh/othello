@@ -1,6 +1,6 @@
 # Othello learning project
 
-A personal learning project for Othello rules, bots, and later training experiments. The current rules engine is at `src/rig/engine.py`; one user-run random-versus-random smoke game completed normally, which is a minimal integration check rather than a full correctness check.
+A personal learning project for Othello self-play, training and CodinGame deployment. See the [current command guide](docs/command-guide.md) for local and GitHub runs, evaluation, model export and submission builds.
 
 ## Setup
 
@@ -135,15 +135,17 @@ Exit status: 0 when the batch finishes, including when forfeits were recorded; 2
 
 Execution is sequential by default; there is no resume, parallel sharding across machines, or HTML game report. Dataset conversion and model training are available through the documented helpers. Stateful bots expose `create_player()` so the rig creates an independent callable per seat per game; stateless bots may continue to expose only `play`. Seed replay assumes the same code and Python environment, though recorded moves replay without any RNG.
 
-## Hosted collection, conversion and training on GitHub Actions
+## Hosted collection, training and evaluation on GitHub Actions
 
-`.github/workflows/selfplay.yml` runs the whole first iteration on a GitHub-hosted runner instead of the laptop: collect self-play games, convert them to a dataset, and train a candidate model that continues the selected parent's weights. It is manual only: never triggered by a push, pull request or schedule. One job on `ubuntu-24.04` (four CPUs on a public repository's standard Linux runner) with `--workers 4`, one inference thread per worker. Nothing is promoted or published: the candidate exists only in the downloaded artifact until you decide otherwise.
+`.github/workflows/selfplay.yml` runs the whole first iteration on a GitHub-hosted runner instead of the laptop: collect self-play games, convert them with eight-way symmetry augmentation, train a candidate from the selected parent, and evaluate it against that exact parent over 1,000 games. It is manual only: never triggered by a push, pull request or schedule. One job on `ubuntu-24.04` (four CPUs on a public repository's standard Linux runner) with `--workers 4`, one inference thread per worker. Nothing is promoted or published: the candidate exists only in the downloaded artifact until you decide otherwise.
 
-The stages, in order, all with the existing documented defaults:
+The stages, in order:
 
 1. **Collect** — `scripts/nn_selfplay_collect.py --games 5000 --seed <yours> --workers 4 --checkpoint models/best.pt`, writing raw records under `runs/github-selfplay/`.
-2. **Convert** — `training.convert --input <run> --output-dir <run>/dataset --seed 12345`, a whole-game 80/20 split into `training.npz` and `validation.npz`.
-3. **Train** — `training.train --dataset-dir <run>/dataset --output-dir checkpoints/github-candidate --initial-checkpoint models/best.pt`. MSE, Adam 0.001, batch 256, seed 12345, 30 epochs, patience 3. `--initial-checkpoint` loads the parent's **weights only** with a fresh Adam, so the candidate is a new run from those weights, not a resumed one.
+2. **Convert** — `training.convert --input <run> --output-dir <run>/dataset --seed 12345 --symmetries`, a whole-game 80/20 split into `training.npz` and `validation.npz`.
+3. **Train** — `training.train --dataset-dir <run>/dataset --output-dir checkpoints/github-candidate --initial-checkpoint models/best.pt`. MSE, Adam 0.001, batch 256, seed 12345, 30 maximum epochs, patience 1. `--initial-checkpoint` loads the parent's **weights only** with a fresh Adam, so the candidate is a new run from those weights, not a resumed one.
+
+4. **Evaluate** — candidate versus retained parent, 1,000 games, alternating colours, R2/T0.05, selected worker count and collection seed + 100000. Logs and a candidate score report are included in the artifact.
 
 To run it:
 
@@ -157,6 +159,7 @@ To run it:
 | --- | --- |
 | `runs/github-selfplay/run-<uuid>/` | raw `games.jsonl`, `metadata.json`, and the converted `dataset/` with both NPZ splits and `conversion-summary.txt` |
 | `runs/github-selfplay/` | `run-summary.txt`, `match-check.txt`, `diversity-summary.txt`, the collection provenance files, `workflow-runtime.txt` (commit SHA, resolved Python/torch/NumPy versions, input values) and `parent.pt` |
+| `runs/github-evaluation/` | raw evaluation games, logs, run summary and evaluation-summary.txt |
 | `checkpoints/github-candidate/` | `best.pt` (the selected candidate), `last.pt`, `training-history.json`, `training-summary.txt` |
 
 `parent.pt` is a copy of the **actual** checkpoint input the run used, so the local comparison below reproduces the candidate's exact starting weights even if you chose a different input than the default. The repository's `models/best.pt` is never modified, and the candidate is never written back over it: adopting a candidate is a separate, manual decision.
@@ -166,9 +169,9 @@ To evaluate the downloaded candidate against that parent locally, keep the artif
 From a terminal, the same run with the GitHub CLI:
 
 ```sh
-gh workflow run selfplay.yml --ref master -f games=5000 -f seed=90003 -f workers=4 -f checkpoint=models/best.pt
+gh workflow run selfplay.yml --ref master -f games=5000 -f seed=90004 -f workers=4 -f checkpoint=models/best.pt
 ```
 
-Three limits worth knowing. Uploaded artifacts are temporary: they expire under the repository's retention policy, so download what you want to keep into `runs/` and `checkpoints/` before then; a copy kept only in GitHub is not the project's archive. Validation losses from the hosted candidate's dataset are not comparable with the local model's losses on the earlier, smaller dataset. And no hosted run has happened yet, so the route, its timing and its result are all unproven.
+Three limits worth knowing. Uploaded artifacts are temporary: they expire under the repository's retention policy, so download what you want to keep into `runs/` and `checkpoints/` before then; a copy kept only in GitHub is not the project's archive. Validation losses from the hosted candidate's dataset are not comparable with the local model's losses on the earlier, smaller dataset. The first hosted collection, conversion, training and artifact download completed successfully; see [the hosted results](docs/first-hosted-training-results.md). Hosted candidate-versus-parent evaluation is not implemented.
 
 

@@ -9,8 +9,11 @@ Start the next session with [Where we are and next steps](next-session.md).
 - [Dataset conversion contract](dataset-design.md)
 - [First model and training baseline](first-model-design.md)
 - [Four-worker collection and GitHub Actions spec](parallel-and-github-design.md)
+- [C bot, model export and CG submission plan](c-bot-plan.md)
 
 ## Reusable workflows
+
+- [Current commands: self-play, training, evaluation and CG submission](command-guide.md)
 
 - [OpenCode shared-session workflow](opencode-workflow.md)
 - [Completion notification workflow](notification-workflow.md)
