@@ -10,7 +10,7 @@ Select this file explicitly with `OTHELLO_NN_CHECKPOINT`; bot settings are uncha
 Keep this baseline separate from future candidate models.
 
 `best.pt` is the selected hosted self-play parent: a copy of
-`runs/github-symmetry/checkpoints/github-candidate/best.pt`, the best epoch-2
-checkpoint from GitHub run 36887079634. Selected 2026-10-01 after its
-1,000-game parent evaluation: 633 wins, 37 draws, 330 losses (65.15% score).
-The next hosted round preserves this parent alongside its new candidate.
+`runs/github-symmetry-second/checkpoints/github-candidate/best.pt`, the best
+epoch-1 checkpoint from GitHub run 36891605722. Selected 2026-10-01 after
+577 wins, 26 draws and 397 losses against its parent in 1,000 games (59% score).
+The next round retains this parent separately from its new candidate.

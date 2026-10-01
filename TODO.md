@@ -150,3 +150,7 @@ I001–I006 are resolved. They covered an invalid EMPTY forfeit actor, incorrect
 - [x] T068 — retrieve full Generation008 hosted artifact and summarize actual symmetry training/1000-game parent evaluation. Candidate adoption/export remains user decision.
 
 - [x] T069 — promote Generation008 candidate, dispatch next hosted round seed90005, quantize/embed/scrunch/compile new CGsubmission for user paste.
+
+- [x] T070 — retrieve/summarize second symmetry-hosted round, preserve candidate/parent/reports; record userCG17thWood2. Further adoption/CGrefresh/experiment awaits user selection.
+
+- [ ] T071 — push Generation009candidate asbest and dispatch unchanged hosted5000/1000 round seed90006; CGrebuild deferred.

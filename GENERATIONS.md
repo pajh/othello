@@ -337,3 +337,15 @@ Permanent chronological record. Raw logs belong in run artifacts; keep this hist
 
 - T069 complete: Generation008 best epoch2 selected/copy to models/best.pt, commit b25322f pushed. Next hosted run36891605722 (https://github.com/pajh/othello/actions/runs/36891605722) observed in_progress,5000games/seed90005/workers4/symmetries/patience1/eval1000seed190005. Results pending.
 - Regenerated Cpayload from runs/github-symmetry/checkpoints/github-candidate/best.pt: shared256codebook, weightMAE0.00090876695/max0.0161861777; payloadCRC02c7e88a/expandedCRCcc3ff2df, model.h72959chars, submission.c87775chars. ExactGCCcompileclean; embeddedreconstructionbyteexactPASS withASan/UBSan (detect_leaks=0). LeakSanitizer initially failed due sandbox ptrace; no leakcheckpassedclaim. One C-NNvsrandomgame seed96001 normal0forfeits/NNwin, runs/c-generation008-smoke/run-b2e203b8e93b435abca88e671a8d8cef. Quantizedstrengthnotmeasured. PreviousCassets preserved runs/c-generation007/. ReadyforuserCGpaste; actualCGnewmodelresultunobserved.
+
+## Generation 009 — 2026-10-01 — second symmetry-trained hosted continuation
+
+This distinct training iteration was dispatched before travel and its dispatch was initially appended underGeneration008. It uses the selected Generation008epoch2candidate as parent; no experimental change beyond fresh selfplaydata/seed90005. Hostedcommitb25322f;run36891605722.
+
+- Latest hosted run36891605722 success, downloaded runs/github-symmetry-second/.5000normal0forfeits,2456/2402/142 outcomes;302725positions, original242177train/60548val expanded1937416/484384. Continued weights/newAdam/patience1: bestepoch1 validation0.192371 vs loadedparent0.194623; epoch2 rose0.192742 and stopped,31.647s training.1000evalnormal0forfeits:577candidatewins/26draws/397losses,59%score,seed190005/R2T0.05/workers4/alternating. Job9m30s. Candidate runs/github-symmetry-second/checkpoints/github-candidate/best.pt; exactparent runs/github-symmetry-second/runs/github-selfplay/parent.pt. No newpromotion/export/jobs.
+- Userreports priorGeneration008quantizedCGsubmission now17thWood2 versus78th earlier. Arenaevidence separatefromunquantizedhostedcandidate evaluation; no leaguepromotionreported.
+
+## Generation 010 — 2026-10-01 — third symmetry-hosted continuation
+
+- User authorized promoting Generation009 bestepoch1candidate to models/best.pt, pushing and launching another identical hosted round while eating. Parent source runs/github-symmetry-second/checkpoints/github-candidate/best.pt, prior1000parentmatch577/26/397 (59%).
+- Plan5000selfplay seed90006/workers4/R2T0.05,whole-game80/20splitseed12345 then8symmetries inbothsplits,continuedweights/newAdam/patience1,max30epochs;1000candidate-parent evaluationseed190006. No OpenCode work needed; no CGexport/rebuild requested until user returns. Runtime/results pending.
