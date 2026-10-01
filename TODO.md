@@ -54,4 +54,25 @@ I001–I006 are resolved. They covered an invalid EMPTY forfeit actor, incorrect
 
 - [x] T042 — user completed both100-game evaluations: candidate/random86/5/9; candidate/parent62/6/32. No additional matches or promotion agreed. Next previously agreed work: local multi-core and GitHub proving runs, still unrun.
 
-- [ ] T045 — user-run5,000 NN self-play games with workers4, second-model best.pt, seed90002, runs/selfplay-5000-second/. Compare actual timing to prior914.067s; next training conditional on satisfactory collection. No run by agents.
+- [x] T045 — user-run5,000 NN self-play games with workers4, second-model best.pt, seed90002, runs/selfplay-5000-second/. Compare actual timing to prior914.067s; next training conditional on satisfactory collection. No run by agents.
+
+- [x] T046 — convert Generation004 collection and continue second-model best.pt with fresh Adam into separate third-model candidate; user-run commands, no jobs by agents.
+
+- T046 conversion portion complete:241,586/60,343positions. Third-model training remains user-run/unstarted.
+
+- Third-model training completed; playing-strength evaluation remains a next user choice. Disposable clone still points to second-model checkpoint; update one string before using it to evaluate third-model.
+
+- [x] T047 — user-selected greedy evaluation option against random: disposable nn_eval_bot copy selecting latest third-model best.pt, random_moves0/temperature0; canonical self-play settings unchanged. Bunny task dispatched; no match yet.
+
+- T047 delivered bots.nn_eval_bot (NN-EVAL-001-R0-T0), hardcoded third-model best.pt. Syntax/source checks reported passed; user-run100against random is ready but unrun.
+
+- T047 greedy/random100 user run completed97/2/1. Third-vs-second evaluation remains unrun; further matches/experiments are user choices.
+
+- [x] T048 — user selected100third-model vs second-model games, both R2/T0.05, alternating colours. Disposable candidate recreated from canonical with one checkpoint-line substitution to third-model best.pt; opponent env selects second-model best.pt. Command seed92002/ workers1, runs/third-model-vs-parent; not run yet.
+
+- T048 user result63/4/33,100normal0forfeits. Further collection/training/evaluation decisions remain with user; hosted runtime still unrun.
+
+- [ ] T049 — first hosted5000 latest-best selfplay -> conversion -> candidate training, download artifacts and exact parent, then local100candidate-parent. Bunny workflow-only extension dispatched; model copy prepared. No hosted job yet.
+- [ ] T050 — later desired hosted1000candidate-parent evaluation and reports; design direction only, outside first hosted-run scope.
+
+- T049 workflow implementation delivered; remote5000dispatch is next, using models/best.pt (third model), seed90003/workers4. No hosted1000evaluation.

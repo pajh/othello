@@ -2,44 +2,13 @@
 
 Updated: 2026-10-01.
 
-- The end-to-end pipeline is implemented: rules/runner/record CLI, whole-game dataset conversion, CPU outcome model/trainer, and versioned bots. Canonical contracts: [project-plan.md](docs/project-plan.md), [batch-design.md](docs/batch-design.md), [dataset-design.md](docs/dataset-design.md), [first-model-design.md](docs/first-model-design.md).
-- Current NN bot: `NN-004-R2-T0.05`, two uniformly random own moves then seeded weighted selection; candidate inference is batched. Model/checkpoint and training settings are documented. Temperature and model design remain starting choices.
-- Latest user self-play run: seed 89014, 100 normal games, zero forfeits, bot 1/2/draw 52/46/2. CLI time 16.257 s (6.151 games/s); helper analysis elapsed 16.296 s. All 100 traces match the prior NN-003 run at the same seed. Against the user's approximate 23 s/100 baseline, this was about 29% less elapsed time; not a controlled benchmark. See [nn-batched-inference-results.md](docs/nn-batched-inference-results.md).
-- Three retained NN-003 batches at seeds 89012/89013/89014 gave bot 1/2/draw 34/64/2, 36/59/5, 52/46/2. The outcome reversal does not establish a persistent seat bias. The first 5,000-game collection is complete; no parallel run or new training has started. See [nn-selfplay-seed-review.md](docs/nn-selfplay-seed-review.md).
-- The first 1,000-game random collection and 800/200 dataset split are retained under `runs/run-197b46d72b9447ebb2e315321400b3e8/`. The supervised first model trained for four epochs; best validation MSE was 0.212422 at epoch 1 versus constant baseline 0.235027. See [collection-1000-review.md](docs/collection-1000-review.md) and [first-training-results.md](docs/first-training-results.md).
-- The installed OpenCode completion hook delivered a notice visibly while this chat was idle; active-turn delivery remains uncertain. Notifications were last recorded as enabled. See [notification-workflow.md](docs/notification-workflow.md).
-- Session resumed: T040's user-run 5,000-game collection/check helper is ready: scripts/nn_selfplay_collect.py, default seed 90001, retained parent checkpoint provenance. Luna reports syntax/help/AST/diff checks passed; game runtime is unverified. User completed 5,000 normal self-play games, zero forfeits, 2,397/2,424/179 bot1/bot2/draw; CLI elapsed 914.067s. Artifacts: runs/selfplay-5000/run-9ad69fb4e22d413c8905b2e392c33b36. Luna saved-report summary requested. No training has started. User selected continuing the existing best model weights for the second training batch; a bounded Bunny trainer change is needed before training. User selected a new Adam optimizer; load model weights only. Artifact locations and OpenCode recovery instructions are in [next-session.md](docs/next-session.md). Historical failures and corrections remain in `GENERATIONS.md`.
+- Canonical pipeline: sequential/parallel rig, schema-v1 game logs, whole-game conversion, CPU outcome MLP/trainer with weights-only initialization. Bot NN-004-R2-T0.05: two random own moves then T0.05 weighted choice. Current selected model: checkpoints/third-model/run-selfplay-5000/best.pt.
+- Generation003: first selfplay5000, parent first-model best.pt, seed90001, sequential914.067s. Second model bestepoch1; same-split validation0.203582 ->0.193218. Matches: candidate/random86/5/9, candidate/parent62/6/32.
+- Generation004: next selfplay5000, parent second-model best.pt, seed90002,4workers249.131s,5000normal0forfeits. Third model bestepoch1; same-split validation0.199267 ->0.186284. Matches: greedy third/random97/2/1; R2/T0.05 third/second63/4/33. Both successive head-to-head batches yielded65%candidate score; no plateau established.
+- Local multi-core collection has completed successfully; GitHub runtime remains untested. Commits: origin/master1e6e72f; local ff30fa2 and later changes not yet pushed.
+- User requests first hosted5000collection with latest best in both seats, conversion and candidate training, downloadable parent/candidate/logs, then local100candidate-parent evaluation. Bunny delivered collection/conversion/training extension of selfplay.yml; models/best.pt prepared from third-model best.pt. No hosted dispatch/training yet.
+- Future desired github-train workflow adds1000candidate-parent evaluation and reports/downloads. This hosted evaluation is not in current implementation scope. No automatic candidate promotion.
+- Disposable candidate/greedy NN copies are snapshots only; develop canonical nn_bot. Current candidate clone selects third-model/R2/T0.05, greedy copy third-model/R0/T0. Detailed artifacts/history in GENERATIONS.md and docs/next-session.md. Raw datasets/checkpoints remain local ignored artifacts except explicit models/ copies.
+- Current visible Bunny session ses_f09b671eaffeJHQOKjugvgpYJR, notification route confirmed. Space Bunny Free implements, Luna reviews/summarises; no extra proof/fault-tolerance/test framework.
 
-- While collection runs, user requested a four-core workflow and GitHub Actions collection. Design prepared in [parallel-and-github-design.md](docs/parallel-and-github-design.md); implementation, remote runs and checkpoint upload remain unperformed.
-
-- User authorized Bunny T009 multi-core CLI implementation; dispatch in progress. gh confirmed pajh/othello PUBLIC. Selected baseline copied to models/first-model.pt with a narrow ignore exception for future GitHub checkout; no commit/push performed.
-
-- T009 CLI multi-core implementation delivered (src/rig/cli.py, src/rig/parallel.py). Bunny reports syntax/import/help checks passed; no games or timings run. Focused Luna source review requested; T043 helper pass-through is next dispatch. Completed collection summary: docs/selfplay-5000-results.md.
-
-- T043 delivered: helper accepts --workers and reports recorded execution fields; static checks reported passed, no parallel runtime. Luna found I007 (unconditional optional torch import in workers); narrow correction is next dispatch before T044.
-
-- I007 corrected: optional torch is inspected after bot imports, then thread limits set if present. Bunny reports focused initializer checks passed; real NN worker/pool runtime unrun. T044 GitHub-hosted collection workflow dispatched, no hosted execution/commit/push.
-
-- T044 delivered: .github/workflows/selfplay.yml, manual collection on ubuntu-24.04 with four workers and models/first-model.pt, downloadable artifact and job summary. Bunny reports YAML/shell/static checks passed. Workflow/dependencies/pool/artifact upload remain unrun on GitHub; no commit/push. Next hosted step is user-authorized commit/push, then user-run dispatch with chosen seed/count.
-
-- Priority set by user: commit/push all prepared changes, then convert the retained 5,000-game collection and train from parent weights with fresh Adam. Local multi-core and hosted proving runs are deferred until after this training; both remain unproven.
-
-- Prepared work committed/pushed to origin/master as 1e6e72f on user instruction, including model copy. No hosted workflow dispatch or parallel games. Priority now T041: user-run conversion of retained self-play5000; Bunny weights-initialization trainer task dispatched before second training.
-
-- User completed Generation003 dataset conversion: 5,000 eligible games, zero skipped forfeits, seed12345 whole-game split 4,000 training games/241,396 positions and 1,000 validation games/60,425 positions. Dataset under runs/selfplay-5000/run-9ad69fb4e22d413c8905b2e392c33b36/dataset/. Second training remains unrun pending trainer handoff.
-
-- T041a delivered in training.train: --initial-checkpoint loads selected weights, resets Adam/epoch counters and records initialization provenance. Bunny reports syntax/help and synthetic loading checks passed; no actual parent load or training. Ready to prepare user-run command against converted selfplay5000 with new candidate output directory.
-
-- User completed second training at checkpoints/second-model/run-selfplay-5000: parent weights/new Adam, four epochs, best epoch1 validationMSE0.193218 vs loaded-parent0.203582 on the same split (~5.1% lower); constant baseline0.242034. Later validation rose while training fell; patience stopped after4epochs, total7.5s. Candidate best.pt retained; no playing-strength evaluation or multicore/hosted proving run. Luna saved-report summary requested.
-
-- User selected two evaluations: candidate vs random100 and candidate vs parent100, alternating colours. Minimal candidate bot wrapper/shared model dispatch task sent to Bunny; launch commands follow from Luna. No strength matches or local/hosted multicore proving run yet.
-
-- User simplified T042a to disposable canonical-bot clone with hardcoded candidate checkpoint. Prior shared-wrapper task interrupted after partial nn_bot edits; replacement task restores canonical and creates clone. No evaluation run.
-
-- User interrupted/rejected candidate coding process. Canonical nn_bot.py and collection helper match committed versions. Primary replaced candidate with a fresh copy of committed nn_bot.py and exactly one checkpoint-selection-line substitution: hardcoded local second-model best.pt with inline THROWAWAY marker. No games/tests/model load; candidate retains canonical NN-004 identity and unchanged settings. Completed trainer changes/artifacts preserved.
-
-- User-run candidate/random100 complete:86/5/9 W/D/L,100normal0forfeits, seed91001, workers1. Candidate best.pt via throwaway clone. Parent/candidate100 next, unrun; older78/3/19 had different seed and greedy settings.
-
-- Both agreed candidate evaluations complete: random86/5/9 at seed91001; parent62/6/32 at seed91002 (65% head-to-head score),100normal0forfeits each, alternating colours, workers1. Matching NN settings for parent comparison supports first self-play improvement in this batch, not a plateau claim. Candidate remains separate from parent; no automated promotion. Multi-core/hosted proving runs unperformed.
-
-- User authorized committing current training/evaluation work and selected next user-run5,000game collection on4workers to measure practical elapsed time versus prior914.067s. Command prepared using second-model best.pt in both canonical NN seats, fresh seed90002, output runs/selfplay-5000-second/. Next run has not started; potential further training depends on completed results. GitHub proving run remains unrun.
+- T049 workflow extension delivered; Bunny reports YAML/shell/static checks passed. Primary preparing commit/push and first hosted5000dispatch, seed90003/workers4/models/best.pt. Hosted runtime remains unproven until job completion.

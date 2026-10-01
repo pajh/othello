@@ -139,3 +139,38 @@ Permanent chronological record. Raw logs belong in run artifacts; keep this hist
 - User ran agreed100head-to-head games at seed91002, workers1, alternating colours. Candidate bots.nn_candidate_bot hardcodes second-model/run-selfplay-5000/best.pt; parent bots.nn_bot explicitly selects first-model/run-2103bc51994e46a099f8b3d78618efd3/best.pt through OTHELLO_NN_CHECKPOINT. Both NN-004-R2-T0.05 settings; copied code ID does not distinguish weights.
 - User CLI result:100normal,0forfeits,62candidate wins/6draws/32parent wins, draw-adjusted score65%. Raw run runs/candidate-vs-parent/run-d97a51b8005a43f3bf3f8df5a1648a69; fixed root run-summary.txt. No independent replay or additional matches.
 - Alongside candidate/random86/5/9 and same-split validation improvement, this batch supports improvement after first self-play continuation. It does not establish a plateau, repeated-seed robustness or maximal strength. Both agreed100-game evaluations completed. Further training/experiments are user decisions; local multi-core and hosted proving runs still unperformed.
+
+## Generation 004 — 2026-10-01 — Latest-model four-worker self-play collection
+
+- Purpose: exercise local4worker collection and gather fresh self-play data for continued training of latest selected model. User ran/monitored5000games, seed90002, four spawned workers with1numerical thread each, alternating colours. Both NN-004-R2-T0.05 seats selected checkpoints/second-model/run-selfplay-5000/best.pt.
+- Retained run: runs/selfplay-5000-second/run-4930cc31f42e4534a4feaf919d672a78; fixed run-summary.txt/match-check.txt/diversity-summary.txt under output root. User CLI result5000normal,0forfeits,bot1/bot2/draw2459/2369/172, helperPASS.
+- User fish wall-clock approximately250s (4m10s), compared with previous sequential CLI914.067s (~3.66x ratio, different timing boundaries/checkpoint/seed/game traces). Practical throughput gain observed, not a controlled scheduling-equivalence benchmark. Local parallel runtime now exercised successfully; GitHub execution still unrun.
+- Next: user-run conversion with whole-game80/20 split seed12345, then continue generating-model weights with fresh Adam into separate candidate directory if collection review satisfactory. No conversion or next training run yet.
+
+- Saved reports read: CLI249.131s (4m9.1s), versus prior CLI914.067s, observed~3.67x throughput/~72.7% less elapsed time.0exact duplicate traces;4/8/12-action unique prefixes244/4,815/4,996, with4,998games reaching12actions;3shared late-position keys across6 of241,935late rows. Descriptive diversity only. No new checks executed.
+
+- User completed Generation004 conversion:5000eligible games,0skipped forfeits, seed12345 whole-game80/20 split. Training4000games/241,586positions, validation1000games/60,343positions, total301,929positions. Artifacts in runs/selfplay-5000-second/run-4930cc31f42e4534a4feaf919d672a78/dataset/. Counts from user output; no extra checks. Next user training starts from second-model/run-selfplay-5000/best.pt with new Adam, output checkpoints/third-model/run-selfplay-5000; not yet run.
+
+### Third-model training completion — 2026-10-01
+
+- User ran Generation004 dataset training with parent checkpoints/second-model/run-selfplay-5000/best.pt, fresh Adam and unchanged defaults. Output checkpoints/third-model/run-selfplay-5000/. Training241,586rows/4000games; validation60,343rows/1000games, CPUthreads4/interop4.
+- Initial parent train/validationMSE0.201083/0.199267, constant validation0.240993. Epoch1–4 training0.176794,0.165259,0.155384,0.146419; validation0.186284,0.190043,0.196149,0.199544. Best epoch1; patience stop after4completed epochs; user CLI total7.1s.
+- Best validation is ~6.5% lower than starting second model on THIS validation split. Later divergence again suggests overfitting. This is not a comparison of validation losses across rounds and does not establish improved playing strength. Third-model best.pt is latest selected checkpoint under user progression preference; prior models preserved. No evaluation of third model yet.
+
+- User selected greedy evaluation against random (R0/T0). Bunny copied canonical bot to disposable nn_eval_bot selecting third-model best.pt, ID NN-EVAL-001-R0-T0; only header/settings/checkpoint edits. Syntax/source checks reported; actual import/match unrun. Canonical/self-play settings unchanged.
+
+### Third-model greedy versus random — 2026-10-01
+
+- User ran100games, seed92001, workers1, alternating colours. bots.nn_eval_bot NN-EVAL-001-R0-T0, hardcoded checkpoints/third-model/run-selfplay-5000/best.pt, no random opening/highest-score selection from first move, versus RAND-001.
+- User CLI outcome100normal,0forfeits,97NNwins/2draws/1loss, draw-adjusted score98%. Raw run runs/third-model-greedy-vs-random/run-d5597b0937c542d6a73b4d26afc50c98; fixed run-summary.txt under output root. No replay or extra matches by agents.
+- Strong performance against random in this batch. Previous candidate86/5/9 used second model, R2/T0.05 and different seed, so improvement cannot be attributed solely to third training or greedy settings. No third-vs-second match yet and no plateau conclusion.
+
+### Third model versus second model — 2026-10-01
+
+- User ran100head-to-head games at seed92002, workers1, alternating colours. Candidate disposable clone selects checkpoints/third-model/run-selfplay-5000/best.pt; parent canonical module explicitly selects second-model/run-selfplay-5000/best.pt. Both copied NN-004-R2-T0.05 settings (2randomownmoves,T0.05).
+- User CLI result100normal,0forfeits,63third-model wins/4draws/33second-model wins, draw-adjusted score65%. Raw run runs/third-model-vs-parent/run-fb413356522944729cb509d5ad45df37; root run-summary.txt. No additional matches/replay by agents.
+- Two successive user-run parent comparisons each yielded65%candidate score (second-vs-first62/6/32; third-vs-second63/4/33). This supports continued improvement in these batches; no observed plateau yet. It does not establish repeated-seed robustness, equal absolute strength gains or an eventual ceiling. No further collection/training automatically authorized.
+
+### Hosted pipeline preparation — 2026-10-01
+
+- Bunny extended existing workflow to collect, convert whole-game80/20 seed12345, train from selected parent weights with fresh Adam, and upload parent/candidate/data/reports. Latest third-model best.pt copied to models/best.pt; original retained. Reports static YAML/shell/interface checks passed. Hosted runtime unknown; primary preparing user-requested first remote5000run (seed90003/workers4). No remote evaluation or promotion.

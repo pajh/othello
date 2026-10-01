@@ -102,3 +102,21 @@ User ran candidate/random100 at86/5/9 (seed91001), then candidate/parent100 at62
 ## Next collection selected — 2026-10-01
 
 User authorized committing current changes, then user-run5,000games with4workers. Prepared command uses canonical nn_bot on both seats, candidate checkpoints/second-model/run-selfplay-5000/best.pt, fresh seed90002, output runs/selfplay-5000-second/. Fresh data can feed another training round if results look good; no job started or further training launched. Timing comparison against previous914.067s is practical rather than controlled because checkpoint and game traces change. Allocate next generation when this collection actually starts.
+
+## Four-worker collection completed — 2026-10-01
+
+Generation004: latest second-model best.pt self-play5000games, seed90002, workers4, run runs/selfplay-5000-second/run-4930cc31f42e4534a4feaf919d672a78.5000normal0forfeits,2459/2369/172 outcomes, helperPASS. Fish~4m10s. Local multicore now exercised; GitHub unrun. Next user-run conversion seed12345/default80/20 then continue second-model best.pt/new Adam in separate third-model output. No conversion/training yet for this collection.
+
+- Generation004 conversion complete: dataset/ holds241,586training and60,343validation rows (4000/1000games). Next training uses second-model/run-selfplay-5000/best.pt, saves third-model/run-selfplay-5000; new Adam, current defaults. Unrun.
+
+## Third model trained — 2026-10-01
+
+Generation004 continuation completed: latest selected checkpoints/third-model/run-selfplay-5000/best.pt, epoch1 validation0.186284 vs starting second-model0.199267 on this split;4epochs,total7.1s. Prior models preserved. No third-model match yet; current disposable clone still hardcodes second-model path and must get one-string update for third-model evaluation. GitHub runtime remains unrun.
+
+- Latest evaluation: third-model greedy NN-EVAL-001-R0-T0 vs RAND-001 at97/2/1 in100games,seed92001,zero forfeits. Raw runs/third-model-greedy-vs-random/run-d5597b0937c542d6a73b4d26afc50c98. This differs in both checkpoint/settings from second-model86/5/9; third-vs-second still unrun.
+
+- Third-vs-second evaluation completed:63/4/33 in100games,seed92002,workers1,matching R2/T0.05,zero forfeits. Raw runs/third-model-vs-parent/run-fb413356522944729cb509d5ad45df37. Both successive candidate-vs-parent batches gave65%score. Latest third-model best.pt remains selected; no next round started.
+
+## First hosted training requested — 2026-10-01
+
+User requests hosted5000latest-best vs best, conversion/training candidate, download parent/candidate/logs, then local100candidate-parent. models/best.pt prepared from third-model best.pt; Bunny receives workflow extension only. Primary to commit/push and dispatch seed90003/workers4 after handoff. No remote job yet. Future desired hosted1000evaluation recorded as separate next stage, no automatic promotion.

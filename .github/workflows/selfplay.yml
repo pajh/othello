@@ -1,9 +1,12 @@
-name: NN self-play collection
+name: NN self-play training
 
 # Manual only. This workflow is never triggered by a push, a pull request, a
 # schedule or a repository event: the user starts it from the Actions page and
-# chooses the seed, game count, worker count and checkpoint. Collection is the
-# only milestone here; there is no conversion, training or publication step.
+# chooses the seed, game count, worker count and parent checkpoint. It runs one
+# job that collects self-play games, converts them to a dataset and trains a
+# candidate model continuing the selected parent's weights. Nothing is promoted,
+# committed, pushed or published: the candidate only exists in the downloaded
+# artifact until the user decides otherwise.
 
 on:
   workflow_dispatch:
@@ -23,10 +26,10 @@ on:
         type: number
         default: 4
       checkpoint:
-        description: 'Repository-relative checkpoint path supplied by checkout'
+        description: 'Repository-relative parent checkpoint supplied by checkout'
         required: true
         type: string
-        default: models/first-model.pt
+        default: models/best.pt
 
 # Read-only is enough: checkout uses persist-credentials false, and nothing
 # here commits, pushes or publishes anything.
@@ -35,7 +38,7 @@ permissions:
 
 jobs:
   collect:
-    name: Collect NN self-play
+    name: Collect, convert and train a candidate
     runs-on: ubuntu-24.04
     steps:
       - name: Check out the selected revision
@@ -65,33 +68,48 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
           RUN_SHA: ${{ github.sha }}
           REF_NAME: ${{ github.ref_name }}
-          RUNNER_CPU_COUNT: ${{ runner.cpu_count }}
         run: |
           mkdir -p runs/github-selfplay
           python - <<'PY'
           import os
+          import shutil
           import sys
 
           import numpy
           import torch
 
+          selected = os.environ['CHECKPOINT']
           lines = [
-              'GitHub-hosted collection runtime record',
+              'GitHub-hosted collect/convert/train runtime record',
               'commit: %s' % os.environ.get('RUN_SHA', 'unknown'),
               'ref: %s' % os.environ.get('REF_NAME', 'unknown'),
               'repository: %s' % os.environ.get('REPOSITORY', 'unknown'),
               'run id: %s' % os.environ.get('RUN_ID', 'unknown'),
               'run attempt: %s' % os.environ.get('RUN_ATTEMPT', 'unknown'),
-              'runner CPUs: %s' % os.environ.get('RUNNER_CPU_COUNT', 'unknown'),
+              'runner CPUs: %s' % os.cpu_count(),
               'python: %s' % sys.version.split()[0],
               'torch: %s' % torch.__version__,
               'numpy: %s' % numpy.__version__,
               'games requested: %s' % os.environ['GAMES'],
               'seed: %s' % os.environ['SEED'],
               'workers requested: %s' % os.environ['WORKERS'],
-              'checkpoint input: %s' % os.environ['CHECKPOINT'],
+              'parent checkpoint input: %s' % selected,
+          ]
+          if os.path.isfile(selected):
+              # Copy the ACTUAL selected parent so the artifact can reproduce
+              # the candidate's starting weights exactly, whichever input the
+              # user chose. The repository's own best.pt is never modified.
+              shutil.copyfile(selected, 'runs/github-selfplay/parent.pt')
+              lines.append('parent copy for local comparison: %s'
+                           % 'runs/github-selfplay/parent.pt')
+          else:
+              lines.append('parent copy for local comparison: not made, '
+                           'the selected input does not exist')
+          lines += [
               'The helper records the resolved checkpoint path and bot IDs in',
               'collection-provenance.json inside the run directory.',
+              'The trainer records its own initialization provenance in',
+              'checkpoints/github-candidate/training-history.json.',
           ]
           text = '\n'.join(lines) + '\n'
           with open('runs/github-selfplay/workflow-runtime.txt', 'w',
@@ -114,16 +132,51 @@ jobs:
             --checkpoint "$CHECKPOINT" \
             --output-dir runs/github-selfplay
 
-      # Runs even when collection fails, so completed games, the run metadata,
-      # the provenance files and the summaries are retained rather than lost.
-      # Repository-default retention; the artifact name is unique per attempt,
-      # so nothing is overwritten.
-      - name: Upload collection output
+      # Finds the one run directory the collector just created and writes its
+      # path to $GITHUB_OUTPUT, so the training step uses the same run without
+      # searching again. No helper script and no second lookup.
+      - name: Convert the collected run to a dataset
+        id: convert
+        run: |
+          mapfile -t runs < <(find runs/github-selfplay -mindepth 1 -maxdepth 1 -type d -name 'run-*')
+          if [ "${#runs[@]}" -ne 1 ]; then
+            echo "expected exactly one run directory, found ${#runs[@]}" >&2
+            exit 1
+          fi
+          run="${runs[0]}"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          python -m training.convert \
+            --input "$run" \
+            --output-dir "$run/dataset" \
+            --seed 12345
+
+      # Defaults unchanged (30 epochs, batch 256, Adam 0.001, seed 12345,
+      # patience 3). --initial-checkpoint loads the parent's weights only with a
+      # fresh Adam; the parent file itself is never written. The output
+      # directory must not exist beforehand, so it is not created here.
+      - name: Train a candidate from the parent weights
+        env:
+          RUN: ${{ steps.convert.outputs.run }}
+          CHECKPOINT: ${{ inputs.checkpoint }}
+        run: |
+          python -m training.train \
+            --dataset-dir "$RUN/dataset" \
+            --output-dir checkpoints/github-candidate \
+            --initial-checkpoint "$CHECKPOINT"
+
+      # Runs even when a step fails, so the completed games, metadata,
+      # provenance, dataset and reports are retained rather than lost, together
+      # with any candidate checkpoint that was produced. Repository-default
+      # retention; the artifact name is unique per attempt, so nothing is
+      # overwritten.
+      - name: Upload collection, dataset and candidate
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: selfplay-${{ github.run_id }}-${{ github.run_attempt }}
-          path: runs/github-selfplay/
+          path: |
+            runs/github-selfplay/
+            checkpoints/github-candidate/
           if-no-files-found: warn
 
       - name: Job summary
@@ -139,16 +192,19 @@ jobs:
           JOB_STATUS: ${{ job.status }}
         run: |
           {
-            echo '## NN self-play collection'
+            echo '## NN self-play collect, convert and train'
             echo
             echo "Job status: $JOB_STATUS"
             echo "Requested: $GAMES games, seed $SEED, $WORKERS workers"
-            echo "Checkpoint input: $CHECKPOINT"
+            echo "Parent checkpoint input: $CHECKPOINT"
             echo "Run page (artifact downloads from here): https://github.com/$REPOSITORY/actions/runs/$RUN_ID"
             echo "Artifact name: selfplay-$RUN_ID-$RUN_ATTEMPT"
             echo
+            echo 'No model is promoted by this workflow. The candidate is only'
+            echo 'in the artifact until the user chooses to keep or replace it.'
+            echo
           } >> "$GITHUB_STEP_SUMMARY"
-          for file in runs/github-selfplay/run-summary.txt runs/github-selfplay/match-check.txt; do
+          for file in runs/github-selfplay/run-summary.txt runs/github-selfplay/match-check.txt runs/github-selfplay/dataset/conversion-summary.txt checkpoints/github-candidate/training-summary.txt; do
             if [ -f "$file" ]; then
               {
                 echo "<details><summary>$(basename "$file")</summary>"

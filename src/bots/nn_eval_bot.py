@@ -1,4 +1,27 @@
-"""Learned bot: greedy one-move evaluation scored by the trained OutcomeMLP.
+"""THROWAWAY EVALUATION SNAPSHOT — do not develop functionality here.
+
+Disposable copy of the canonical bot ``bots/nn_bot.py``, made for one greedy
+against-random evaluation. All functionality belongs in :mod:`bots.nn_bot`;
+**regenerate this clone from that file for any future evaluation** and change
+only the constants listed below. Nothing here is a permanent second bot.
+
+Differences from the canonical file, and nothing else:
+
+1. the hardcoded checkpoint in :func:`_load_model`, this one file:
+   ``checkpoints/third-model/run-selfplay-5000/best.pt`` under the repository
+   root;
+2. :data:`RANDOM_MOVES` = 0 and :data:`TEMPERATURE` = 0, so this copy plays the
+   highest-scoring legal move from the very first move of every game — the
+   greedy primitive with no random opening and no weighted sampling;
+3. the identity constants, giving the display ID ``NN-EVAL-001-R0-T0``.
+
+Everything else — the encoding, the loader's validation, the batched scoring,
+``play``, ``select_scored_move`` and ``create_player`` — is copied unchanged.
+The paragraphs below are inherited from the canonical file; where they describe
+the ``OTHELLO_NN_CHECKPOINT`` environment variable or the parent's settings,
+they no longer apply to this copy, as stated above.
+
+Learned bot: greedy one-move evaluation scored by the trained OutcomeMLP.
 
 Separate from :mod:`bots.max_bot`, which stays unchanged and keeps its
 deterministic placeholder score. This module has the same move-selection
@@ -58,21 +81,19 @@ from rig.types import Observation
 from training.model import MODEL_VERSION, OutcomeMLP
 
 # ===================================================================
-# SETTINGS — bot identity, opening and sampling. Edit these constants,
-# then increment VERSION by one per completed saved edit revision of this
-# file (not per keystroke). The ID is what run reports and metadata
-# display, and it includes the random-opening count and the sampling
-# temperature. This is the code version of the bot, not a
-# model-training generation.
+# SETTINGS — throwaway snapshot identity. Copied from bots/nn_bot.py and
+# changed only here: no random opening and greedy selection from the first
+# move, so the display ID reads NN-EVAL-001-R0-T0. Edit nn_bot.py for any
+# real change; regenerate this copy rather than developing it.
 # ===================================================================
-VERSION = '004'
-BOTNAME = 'NN'
-RANDOM_MOVES = 2
+VERSION = '001'
+BOTNAME = 'NN-EVAL'
+RANDOM_MOVES = 0
 # Temperature for choosing among scored moves after the random opening.
-# 0.05 is a starting value, not a tuned one: a higher value spreads
-# choices more, 0 means greedy (the first tied best move), which is what
-# the module-level play() always does.
-TEMPERATURE = 0.05
+# 0 means greedy (the first tied best move), which is what the module-level
+# play() always does. With RANDOM_MOVES = 0 there is no opening, so every
+# move of every game is chosen this way.
+TEMPERATURE = 0
 # Plain decimal rather than exponent, so the ID stays unambiguous in
 # reports and filenames.
 ID = f'{BOTNAME}-{VERSION}-R{RANDOM_MOVES}-T{TEMPERATURE:g}'
@@ -132,13 +153,12 @@ def _load_model():
     Called once at import time. Errors name the environment variable and the
     path, so a setup mistake is obvious before any game starts.
     """
-    raw_path = '/home/paul/dev/othello/checkpoints/third-model/run-selfplay-5000/best.pt'  # THROWAWAY evaluation clone; develop only nn_bot.py.
-    if not raw_path or not raw_path.strip():
-        raise RuntimeError(
-            '%s is not set: name the checkpoint to play with, for example '
-            'OTHELLO_NN_CHECKPOINT=checkpoints/first-model/run-<uuid>/best.pt'
-            % CHECKPOINT_ENV
-        )
+    # THROWAWAY SNAPSHOT: the checkpoint is hardcoded here instead of read from
+    # CHECKPOINT_ENV, so this copy always plays this one file and needs no
+    # environment variable. The parent bot is unaffected and still selected by
+    # OTHELLO_NN_CHECKPOINT.
+    raw_path = ('/home/paul/dev/othello/checkpoints/third-model'
+                '/run-selfplay-5000/best.pt')
     path = os.path.abspath(os.path.expanduser(raw_path.strip()))
     if not os.path.exists(path):
         raise RuntimeError(

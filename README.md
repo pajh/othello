@@ -135,23 +135,40 @@ Exit status: 0 when the batch finishes, including when forfeits were recorded; 2
 
 Execution is sequential by default; there is no resume, parallel sharding across machines, or HTML game report. Dataset conversion and model training are available through the documented helpers. Stateful bots expose `create_player()` so the rig creates an independent callable per seat per game; stateless bots may continue to expose only `play`. Seed replay assumes the same code and Python environment, though recorded moves replay without any RNG.
 
-## Hosted collection on GitHub Actions
+## Hosted collection, conversion and training on GitHub Actions
 
-`.github/workflows/selfplay.yml` collects the same NN self-play batch on a GitHub-hosted runner instead of on the laptop. It is manual only: it is never triggered by a push, pull request or schedule. It runs one job on `ubuntu-24.04` (four CPUs on a public repository's standard Linux runner) with `--workers 4`, one inference thread per worker. Conversion and training are not part of it, and nothing is committed, pushed or published.
+`.github/workflows/selfplay.yml` runs the whole first iteration on a GitHub-hosted runner instead of the laptop: collect self-play games, convert them to a dataset, and train a candidate model that continues the selected parent's weights. It is manual only: never triggered by a push, pull request or schedule. One job on `ubuntu-24.04` (four CPUs on a public repository's standard Linux runner) with `--workers 4`, one inference thread per worker. Nothing is promoted or published: the candidate exists only in the downloaded artifact until you decide otherwise.
+
+The stages, in order, all with the existing documented defaults:
+
+1. **Collect** — `scripts/nn_selfplay_collect.py --games 5000 --seed <yours> --workers 4 --checkpoint models/best.pt`, writing raw records under `runs/github-selfplay/`.
+2. **Convert** — `training.convert --input <run> --output-dir <run>/dataset --seed 12345`, a whole-game 80/20 split into `training.npz` and `validation.npz`.
+3. **Train** — `training.train --dataset-dir <run>/dataset --output-dir checkpoints/github-candidate --initial-checkpoint models/best.pt`. MSE, Adam 0.001, batch 256, seed 12345, 30 epochs, patience 3. `--initial-checkpoint` loads the parent's **weights only** with a fresh Adam, so the candidate is a new run from those weights, not a resumed one.
 
 To run it:
 
-1. Commit and push this workflow, the `src/` and `scripts/` changes it depends on, and `models/first-model.pt` to the default branch. The workflow is not available until that is on the branch you select in the Run workflow dialog.
-2. Open the repository's **Actions** tab, choose **NN self-play collection**, and press **Run workflow**.
-3. Fill in the inputs. `seed` has no default and is yours to choose; `games` defaults to 5000, `workers` to 4, and `checkpoint` to `models/first-model.pt`, the retained baseline copied into this repository.
-4. Watch the job log: the helper prints the checkpoint, seed, game count and worker count, then the CLI's progress lines appear there. Collection is the slow part.
-5. When the job finishes, download the artifact `selfplay-<run id>-<run attempt>` from the job's summary page. It contains `runs/github-selfplay/`: the raw `run-<uuid>/` game records, `metadata.json`, `run-summary.txt`, `match-check.txt`, `diversity-summary.txt`, the collection provenance files and `workflow-runtime.txt`, which records the commit SHA, the resolved Python/torch/NumPy versions and the input values used.
+1. Commit and push this workflow, the `src/` and `scripts/` changes it depends on, and `models/best.pt` to the branch you intend to select. The workflow is not available until it is on that branch.
+2. Open the repository's **Actions** tab, choose **NN self-play training**, and press **Run workflow**.
+3. Fill in the inputs. `seed` has no default and is yours to choose; `games` defaults to 5000, `workers` to 4, and `checkpoint` to `models/best.pt`.
+4. Watch the log. Collection is the slow part; conversion replays every game and prints its own counts; the trainer prints one line per epoch with training and validation MSE.
+5. Download the artifact `selfplay-<run id>-<run attempt>` when the job finishes. It contains:
 
-The same run from a terminal with the GitHub CLI, if preferred:
+| path | contents |
+| --- | --- |
+| `runs/github-selfplay/run-<uuid>/` | raw `games.jsonl`, `metadata.json`, and the converted `dataset/` with both NPZ splits and `conversion-summary.txt` |
+| `runs/github-selfplay/` | `run-summary.txt`, `match-check.txt`, `diversity-summary.txt`, the collection provenance files, `workflow-runtime.txt` (commit SHA, resolved Python/torch/NumPy versions, input values) and `parent.pt` |
+| `checkpoints/github-candidate/` | `best.pt` (the selected candidate), `last.pt`, `training-history.json`, `training-summary.txt` |
+
+`parent.pt` is a copy of the **actual** checkpoint input the run used, so the local comparison below reproduces the candidate's exact starting weights even if you chose a different input than the default. The repository's `models/best.pt` is never modified, and the candidate is never written back over it: adopting a candidate is a separate, manual decision.
+
+To evaluate the downloaded candidate against that parent locally, keep the artifact's `parent.pt` and `checkpoints/github-candidate/best.pt`, and play the parent against the candidate with alternating colours over 100 games using the documented bot modules and their required environment variables. Record which checkpoint each bot used alongside the result.
+
+From a terminal, the same run with the GitHub CLI:
 
 ```sh
-gh workflow run selfplay.yml --ref master -f games=5000 -f seed=90002 -f workers=4 -f checkpoint=models/first-model.pt
+gh workflow run selfplay.yml --ref master -f games=5000 -f seed=90003 -f workers=4 -f checkpoint=models/best.pt
 ```
 
-Two limits worth knowing. Uploaded artifacts are temporary: workflow artifacts expire under the repository's retention policy, so download any collection you want to keep into `runs/` before then; a copy kept only in GitHub is not the project's archive. And no hosted collection has been run yet, so the route and its timing are unproven.
+Three limits worth knowing. Uploaded artifacts are temporary: they expire under the repository's retention policy, so download what you want to keep into `runs/` and `checkpoints/` before then; a copy kept only in GitHub is not the project's archive. Validation losses from the hosted candidate's dataset are not comparable with the local model's losses on the earlier, smaller dataset. And no hosted run has happened yet, so the route, its timing and its result are all unproven.
+
 

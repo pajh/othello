@@ -30,6 +30,7 @@ dist/
 *.npy
 *.pt
 !/models/first-model.pt
+!/models/best.pt
 *.pth
 *.onnx
 *.jsonl

@@ -8,3 +8,9 @@ The original checkpoint remains untouched.
 It uses the outcome MLP/encoding documented in `docs/first-model-design.md`.
 Select this file explicitly with `OTHELLO_NN_CHECKPOINT`; bot settings are unchanged.
 Keep this baseline separate from future candidate models.
+
+`best.pt` is the current selected model for hosted self-play: a copy of
+`checkpoints/third-model/run-selfplay-5000/best.pt`, selected epoch 1 from the
+second 5,000-game self-play continuation. Copied 2026-10-01 for the first
+GitHub collection/conversion/training run. Preserve this parent in downloaded
+run artifacts when evaluating a new hosted candidate.
