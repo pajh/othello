@@ -109,7 +109,7 @@ This wrapper currently reports `C-RAND-001` even though `make bot` builds C-NN-0
 
 ## 4. Export, quantize, embed, and inspect the neural C payload
 
-Choose the checkpoint deliberately. The current hosted candidate is `runs/github-first/checkpoints/github-candidate/best.pt`; the repo's `models/best.pt` now contains a copy of that hosted candidate, explicitly selected for the next round. Promotion to `models/best.pt` is an explicit user decision; copying it changes the checkpoint supplied by a future GitHub run only after that file is committed and pushed.
+Choose the checkpoint deliberately. The current hosted candidate is `runs/github-first/checkpoints/github-candidate/best.pt`; the repo's `models/best.pt` now contains the newer symmetry-trained candidate at `runs/github-symmetry/checkpoints/github-candidate/best.pt`, selected after its 65.15% parent-match score. Promotion to `models/best.pt` is an explicit user decision; copying it changes the checkpoint supplied by a future GitHub run only after that file is committed and pushed.
 
 The current export paths below feed the Makefile and scrunch commands. The FP32 export is headerless little-endian binary32, 49,537 parameters and 198,148 bytes, with `blob-layout.txt` describing tensor order and offsets:
 
@@ -226,7 +226,7 @@ To submit, open the CodinGame Othello bot editor, replace its source with the co
 
 ## 6. GitHub hosted collection and training
 
-`.github/workflows/selfplay.yml` is manual-only: collect self-play, convert with symmetry augmentation, train, evaluate against the exact parent, then upload the artifacts. It now evaluates the candidate remotely over 1,000 games with R2/T0.05 on both seats and alternating colours. It does not promote the candidate or update `models/best.pt`. Conversion enables all eight symmetries independently after the whole-game split; training uses patience 1, retaining best.pt at the first epoch without validation improvement. Evaluation uses the collection seed plus 100000. Before dispatch, commit and push the intended code and checkpoint to the selected ref; an uncommitted local checkpoint is unavailable to GitHub Actions. The selected `models/best.pt` is now the first hosted candidate, copied explicitly for this next round.
+`.github/workflows/selfplay.yml` is manual-only: collect self-play, convert with symmetry augmentation, train, evaluate against the exact parent, then upload the artifacts. It now evaluates the candidate remotely over 1,000 games with R2/T0.05 on both seats and alternating colours. It does not promote the candidate or update `models/best.pt`. Conversion enables all eight symmetries independently after the whole-game split; training uses patience 1, retaining best.pt at the first epoch without validation improvement. Evaluation uses the collection seed plus 100000. Before dispatch, commit and push the intended code and checkpoint to the selected ref; an uncommitted local checkpoint is unavailable to GitHub Actions. The selected `models/best.pt` is now the symmetry-trained candidate from run 36887079634, copied explicitly for the next round.
 
 From the Actions page choose **NN self-play training** and run it manually, or use `gh` with explicit inputs:
 

@@ -106,3 +106,9 @@ Updated: 2026-10-01.
 - Duplicate WORKERS corrected; primary duplicate-key-rejecting YAML parse passed (12steps), git diff --check clean, models/best.pt byte-identical to selected hosted candidate (609112bytes). Commit/push and dispatch now proceeding.
 
 - T067 complete: full implementation/model/docs commit b9aea93 pushed origin/master. Generation008 dispatched: https://github.com/pajh/othello/actions/runs/36887079634, observed in_progress,5000games/seed90004/workers4/models/best.pt. Expected eval1000games/seed190004. Runtime/results not yet known; retrieve artifact and review when complete.
+
+- Generation008 completed successfully: GitHub36887079634, job8m49s; downloaded full artifact to runs/github-symmetry/. Collection5000normal/0forfeits,2374/2442/184 outcomes,seed90004/workers4. Original241974training/60448validation positions expanded8fold to1935792/483584, whole-game4000/1000split preserved per conversion report.
+- Continued parent weights/newAdam/patience1: initial validationMSE0.196363, bestepoch2 MSE0.190112; epoch3 rose0.190593 and stopped; training41.319s. Actual trainedarchitecture unchanged128/256/64/1.
+- Hosted evaluation1000normal/0forfeits: candidate633wins/37draws/330losses,65.15%score,seed190004,R2/T0.05bothseats/alternating/workers4. Strong evidence candidate beats this parent under tested settings; symmetry-specific causal effect not isolated. Candidate runs/github-symmetry/checkpoints/github-candidate/best.pt, exactparent runs/github-symmetry/runs/github-selfplay/parent.pt. No adoption or Cexport update performed.
+
+- User authorizes promoting Generation008 candidate for another hosted5000game training/evaluation round and a newly quantized CGsubmission before travel. models/best.pt copied from runs/github-symmetry/checkpoints/github-candidate/best.pt; nextseed90005/eval190005/workers4/eight-way augmentation/patience1. Previous C artifacts copied to runs/c-generation007 before regeneration.

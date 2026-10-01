@@ -9,9 +9,8 @@ It uses the outcome MLP/encoding documented in `docs/first-model-design.md`.
 Select this file explicitly with `OTHELLO_NN_CHECKPOINT`; bot settings are unchanged.
 Keep this baseline separate from future candidate models.
 
-`best.pt` is the current selected model for hosted self-play: a copy of
-`runs/github-first/checkpoints/github-candidate/best.pt`, the epoch-1 candidate
-from successful GitHub run 36841281392. Selected for the next hosted round on
-2026-10-01 after local evaluation: 54 wins / 4 draws / 42 losses against its
-parent and greedy 100 wins / 0 draws / 0 losses against random.
-The next workflow retains this exact parent separately from its new candidate.
+`best.pt` is the selected hosted self-play parent: a copy of
+`runs/github-symmetry/checkpoints/github-candidate/best.pt`, the best epoch-2
+checkpoint from GitHub run 36887079634. Selected 2026-10-01 after its
+1,000-game parent evaluation: 633 wins, 37 draws, 330 losses (65.15% score).
+The next hosted round preserves this parent alongside its new candidate.
