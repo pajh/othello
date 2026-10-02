@@ -10,10 +10,10 @@ on:
   workflow_dispatch:
     inputs:
       depth:
-        description: 'Edax search level (for example 38)'
+        description: 'Edax search level (for example 34)'
         required: true
         type: number
-        default: 38
+        default: 34
       cores:
         description: 'Independent one-thread Edax workers (four on the standard public runner)'
         required: true

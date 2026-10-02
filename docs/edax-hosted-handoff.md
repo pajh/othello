@@ -13,7 +13,7 @@ The evaluator, the retained inputs and every other workflow are unchanged.
 
 | Input | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `depth` | number | 38 | Edax search **level**, not a full-width depth guarantee |
+| `depth` | number | 34 | Edax search **level**, not a full-width depth guarantee |
 | `cores` | number | 4 | Independent one-thread Edax workers (`-n-tasks 1`) |
 
 No other trigger exists: no push, pull request, schedule or repository event.
@@ -54,7 +54,7 @@ No other trigger exists: no push, pull request, schedule or repository event.
 ## Exact commands (user/design launch separately)
 
 ```
-gh workflow run edax-book.yml --ref master -f depth=38 -f cores=4
+gh workflow run edax-book.yml --ref master -f depth=34 -f cores=4
 gh run list --workflow edax-book.yml --limit 5
 gh run watch <run-id>
 gh run download <run-id> -n edax-book-<run-id>-<attempt> -D runs/hosted-edax
@@ -95,3 +95,10 @@ gh run download <run-id> -n edax-book-<run-id>-<attempt> -D runs/hosted-edax
 - No resume: a stopped run must be dispatched again to a new artifact; the
   evaluator refuses an existing output path on the same runner.
 - No strength, size or timing claims. Hosted level-38 execution is unrun.
+
+## Level-34 retry — 2026-10-02
+
+User authorized commit, push and a four-worker level-34 retry after level 38
+stopped at the ETA guard (61/2479 rows, latest estimate 11.93 hours). The workflow
+default is now 34; retained input and five-hour limits are unchanged. The original
+status/checks above describe the initial T077 handoff, not the later hosted run.
