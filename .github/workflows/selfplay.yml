@@ -180,9 +180,9 @@ jobs:
       # module that is a byte-for-byte copy of the canonical nn_bot.py with one
       # line changed: where it reads the checkpoint environment variable, it
       # names the candidate file instead. Nothing else changes, so both seats
-      # play by the same code path with the same R2/T0.05 settings and the same
-      # display ID; the checkpoint paths in the reports are what distinguish the
-      # weights. This module exists only inside the runner.
+      # play by the same code path with the same R2/T0.05/C8 settings and the
+      # same display ID; the checkpoint paths in the reports are what
+      # distinguish the weights. This module exists only inside the runner.
       - name: Create the disposable candidate bot module
         env:
           CANDIDATE: checkpoints/github-candidate/best.pt
@@ -284,9 +284,9 @@ jobs:
               'both loaded from:     runs/github-evaluation/run-summary.txt',
               'games requested: 1000, alternating colours',
               'workers: %s' % os.environ.get('WORKERS', 'recorded in run-summary.txt'),
-              'bot settings: NN R2/T0.05, fresh create_player per seat per game',
+              'bot settings: NN R2/T0.05/C8, fresh create_player per seat per game',
               'evaluation seed: %s' % seed,
-              'code ID: both seats report NN-004-R2-T0.05; the checkpoint paths',
+              'code ID: both seats report NN-006-R2-T0.05-C8; the checkpoint paths',
               '         above are what distinguish the two sets of weights',
               '',
           ]

@@ -1,3 +1,8 @@
+# DISPOSABLE SNAPSHOT - do not develop here. Unmodified copy of
+# src/bots/nn_bot.py (VERSION 005, exact terminal endgame negamax) with only
+# COUNT_LEFT changed to 6 for a one-off strength/runtime comparison against
+# the canonical C0 bot. Develop in src/bots/nn_bot.py; regenerate this copy
+# for later comparisons.
 """Learned bot: greedy one-move evaluation scored by the trained OutcomeMLP.
 
 Separate from :mod:`bots.max_bot`, which stays unchanged and keeps its
@@ -78,7 +83,7 @@ from training.model import MODEL_VERSION, OutcomeMLP
 # temperature. This is the code version of the bot, not a
 # model-training generation.
 # ===================================================================
-VERSION = '006'
+VERSION = '005'
 BOTNAME = 'NN'
 RANDOM_MOVES = 2
 # Temperature for choosing among scored moves after the random opening.
@@ -89,7 +94,7 @@ TEMPERATURE = 0.05
 # Exact endgame cutoff: when a positive value is set, positions with at most
 # this many empty squares are solved exactly instead of scored by the model.
 # 0 disables the solver and keeps the previous behaviour. Allowed range 0..60.
-COUNT_LEFT = 8
+COUNT_LEFT = 6
 # Plain decimal rather than exponent, so the ID stays unambiguous in
 # reports and filenames. The cutoff is part of the ID.
 ID = f'{BOTNAME}-{VERSION}-R{RANDOM_MOVES}-T{TEMPERATURE:g}-C{COUNT_LEFT}'
