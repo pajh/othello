@@ -1,0 +1,147 @@
+name: Edax opening-book evaluation
+
+# Manual only. Started from the Actions page; the user chooses the Edax level
+# and the worker count. It evaluates the retained canonical prefix file with the
+# existing local evaluator on one GitHub-hosted runner and uploads everything
+# the run produced. Nothing is committed, pushed, promoted or scheduled, and no
+# chat notification is sent.
+
+on:
+  workflow_dispatch:
+    inputs:
+      depth:
+        description: 'Edax search level (for example 38)'
+        required: true
+        type: number
+        default: 38
+      cores:
+        description: 'Independent one-thread Edax workers (four on the standard public runner)'
+        required: true
+        type: number
+        default: 4
+
+# Read-only is enough: checkout keeps no credentials and nothing is published.
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    name: Evaluate the canonical prefix file with Edax
+    runs-on: ubuntu-24.04
+    # 330 minutes leaves an upload margin beyond the evaluator's 5-hour cap.
+    timeout-minutes: 330
+    steps:
+      - name: Check out the selected revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      # The rules engine and the evaluator use the standard library only, so no
+      # torch, numpy or sklearn install is needed or wanted here.
+      - name: Install the project (engine only)
+        run: |
+          python -m pip install --no-deps -e .
+
+      - name: Download and verify the pinned Edax package
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/edax.tar.gz \
+            https://github.com/abulmo/edax-reversi/releases/download/v4.6/edax-4.6-linux-x86.tar.gz
+          echo '7ca52cb0ccf591ad9690e7d21861d4a6f04b900c686346db98ea26dd30cd966a  /tmp/edax.tar.gz' | sha256sum -c -
+          mkdir -p tools/edax
+          extract="$(mktemp -d)"
+          tar -xzf /tmp/edax.tar.gz -C "$extract"
+          # The release archive may or may not be wrapped in a top-level
+          # directory; find the directory that actually holds the binary.
+          root="$extract"
+          if [ ! -f "$root/lEdax-x86-64" ]; then
+            root="$(dirname "$(find "$extract" -name lEdax-x86-64 -print -quit)")"
+          fi
+          cp -a "$root"/. tools/edax/
+          rm -rf "$extract"
+          test -x tools/edax/lEdax-x86-64
+          test -f tools/edax/data/eval.dat
+
+      # The tracked 84-byte book is a valid Edax book: using it avoids a startup
+      # book creation that would run an extra search and write to the file.
+      - name: Install the read-only startup book
+        run: |
+          set -euo pipefail
+          mkdir -p tools/edax/data
+          cp data/opening-book/startup-book.dat tools/edax/data/book.dat
+          test -s tools/edax/data/book.dat
+
+      # A non-zero status is expected on a planned stop (estimated-time or hard
+      # limit) and is preserved: the run has not completed. The evaluator keeps
+      # the partial snapshot, the runtime summary and the worker logs.
+      - name: Run the Edax evaluation
+        env:
+          DEPTH: ${{ inputs.depth }}
+          CORES: ${{ inputs.cores }}
+        run: |
+          set -euo pipefail
+          mkdir -p runs/edax-evaluation
+          python -u scripts/evaluate_edax_prefixes.py \
+            --input data/opening-book/prefixes-canonical.txt \
+            --output runs/edax-evaluation/evaluated-prefixes.txt \
+            --cores "$CORES" \
+            --depth "$DEPTH" \
+            --eta-check-after 600 \
+            --eta-check-interval 150 \
+            --max-estimated-hours 5 \
+            --max-hours 5 \
+            2>&1 | tee runs/edax-evaluation/evaluation.log
+
+      # Runs even when the evaluation step fails, so partial records, raw worker
+      # logs and the runtime summary survive a planned stop or an error. The
+      # artifact name is unique per attempt, so nothing is overwritten.
+      - name: Upload evaluation outputs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: edax-book-${{ github.run_id }}-${{ github.run_attempt }}
+          path: runs/edax-evaluation/
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        env:
+          DEPTH: ${{ inputs.depth }}
+          CORES: ${{ inputs.cores }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo '## Hosted Edax opening-book evaluation'
+            echo
+            echo "Job status: $JOB_STATUS"
+            echo "Requested Edax level: $DEPTH"
+            echo "Requested workers: $CORES"
+            echo "Run page (artifact downloads from here): https://github.com/$REPOSITORY/actions/runs/$RUN_ID"
+            echo "Artifact name: edax-book-$RUN_ID-$RUN_ATTEMPT"
+            echo
+            echo 'A non-zero job status can be a planned stop (estimated time or'
+            echo 'hard limit); the uploaded runtime summary states the reason.'
+            echo 'Complete outputs are published only when every row is done.'
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          summary="runs/edax-evaluation/evaluated-prefixes.runtime-summary.txt"
+          if [ -f "$summary" ]; then
+            {
+              echo "<details><summary>runtime-summary.txt</summary>"
+              echo
+              echo '```'
+              cat "$summary"
+              echo '```'
+              echo
+              echo '</details>'
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

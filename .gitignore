@@ -35,3 +35,5 @@ dist/
 *.onnx
 *.jsonl
 *.log
+
+/tools/edax/
