@@ -21,7 +21,7 @@ CHECKPOINT = (ROOT / 'checkpoints/first-model/run-2103bc51994e46a099f8b3d78618ef
 GAMES = 5000
 SEED = 90001
 WORKERS = 1
-BOT_ID = 'NN-004-R2-T0.05'
+BOT_ID = 'NN-006-R2-T0.05-C8'
 BOT_MODULE = 'bots.nn_bot'
 SEED_DERIVATION = 'sha256-first-8-bytes-big-endian:{master_seed}:{game_index}:{bot_id}'
 #: Execution fields a run's metadata.json may record, and what a run written
