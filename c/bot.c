@@ -1,18 +1,28 @@
 /* ==========================================================================
  * CodinGame multiplayer Othello bot — greedy embedded neural network.
  *
- * SETTINGS / VERSION 005. Every supplied legal move is applied to the current
+ * SETTINGS / VERSION 007. Every supplied legal move is applied to the current
  * board, the resulting position is encoded from this seat's perspective and
  * scored by the embedded network, and the highest score is played. Greedy from
- * the very first move: no random opening, no sampling, no search, and no
- * legal-move generator for choosing moves, because the platform supplies
- * every legal move. Standalone bitboard legal-move and flip-mask functions
- * are present for future consumers; neither participates in current choice.
+ * the very first move: no random opening and no sampling. When the game is
+ * close to the end (at most SEARCH_MAX_EMPTIES empty squares) a timed
+ * terminal-only negamax then tries to prove a move better than the network's;
+ * if it proves nothing inside the turn budget, the network's greedy move is
+ * played. The bitboard legal-move and flip-mask functions below are what that
+ * search uses.
+ *
+ * With SEARCH_DEBUG non-zero, one compact diagnostic line is written to stderr
+ * before each move: turn, empty count, whether the search ran and why not when
+ * it did not, the network move, the played move, visited search nodes, terminal
+ * leaves, completed root moves, best completed proof, timeout and elapsed ms.
+ * stdout still carries exactly the one move and nothing else.
  *
  * Version history: 001 played a random legal move; 002 removed the routine
  * per-turn logging; 003 replaced random scoring with the embedded network;
  * 004 added a portable bitboard legal-move function without changing choice;
- * 005 added a portable scalar bitboard flip-mask function, also unused.
+ * 005 added a portable scalar bitboard flip-mask function, also unused;
+ * 006 added the timed terminal-only endgame negamax using both;
+ * 007 added the optional per-turn stderr search diagnostic.
  *
  * Ordinary mode only (no EXPERT input). Input contract, per turn:
  *
@@ -46,10 +56,17 @@
  * headers, no other source file.
  * ========================================================================== */
 
+/* clock_gettime and CLOCK_MONOTONIC are POSIX.1-2001; the feature macro must
+ * precede the standard headers. If the build already defines it, keep that. */
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "nn.h"
 #include "model.h"
@@ -60,8 +77,34 @@ typedef uint64_t u64;
 /* ------------------------------- SETTINGS -------------------------------- */
 /* Bot identity for local runs and reports. Increment on each completed
  * revision of this file, as with the Python bots. */
-#define VERSION "005"
+#define VERSION "007"
 #define BOTNAME "C-NN"
+
+/* CodinGame captures stderr, so a diagnostic here is visible in the arena
+ * without touching stdout. 1 writes one compact line per turn; 0 makes the
+ * bot silent again, with the search itself unchanged. */
+#define SEARCH_DEBUG 1
+
+/* Timed terminal-only endgame search. It activates when the number of empty
+ * squares is at most SEARCH_MAX_EMPTIES (0 disables it for focused
+ * comparisons). SEARCH_BUDGET_MS is the whole turn's budget in milliseconds,
+ * measured from the turn's first board row and shared by the network scoring
+ * and the search; it stays 10ms below the platform's 150ms turn limit to keep
+ * a margin for the final output. SEARCH_CLOCK_INTERVAL is the number of
+ * visited search nodes between monotonic clock reads, so one large subtree
+ * cannot run the budget down unnoticed; the overshoot between checks is
+ * bounded by that many nodes, not by a wall-clock figure. */
+#define SEARCH_MAX_EMPTIES 16
+#define SEARCH_BUDGET_MS 140
+#define SEARCH_CLOCK_INTERVAL 256u
+
+/* Reasons the search can be skipped, used only by the diagnostic. */
+#define DBG_REASON_ACTIVE 0
+#define DBG_REASON_DISABLED 1
+#define DBG_REASON_NON8 2
+#define DBG_REASON_SINGLE 3
+#define DBG_REASON_BUDGET 4
+#define DBG_REASON_CUTOFF 5
 
 /*
  * Scalar one-stage parallel-prefix legal-move calculation adapted from
@@ -318,6 +361,309 @@ static fp32 score(const char *current, const char *coord, int board_size,
     return forward(model_input, &model);
 }
 
+/* ------------------------- timed endgame search --------------------------- */
+/*
+ * Terminal-only negamax over the bitboards, used only when the game is close
+ * enough to the end (SEARCH_MAX_EMPTIES). A leaf value is the exact game
+ * result from the side to move: +1 win, 0 draw, -1 loss, decided by the final
+ * disc count. There is no heuristic, no depth limit, no transposition table
+ * and no move ordering beyond the root's neural-first order. Forced passes
+ * swap the boards without filling a square; when neither side can move the
+ * count is taken even if empty squares remain.
+ *
+ * A timeout is a separate state, never a score. negamax() returns an
+ * unspecified value with search_timed_out set, and every caller must discard
+ * any value produced while that flag is set rather than negate or publish it.
+ *
+ * Alpha/beta windows bound the search but are not proofs. The root searches
+ * each move across the full (-1, +1) window, which spans the whole three-value
+ * domain, so a completed value is exact: +1 proves a win for the mover, 0
+ * proves at least a draw (a nonloss), and -1 proves a loss. A partially
+ * explored subtree is never returned as an exact value; its move is abandoned
+ * and left unproven.
+ *
+ * Time checks are amortised. A cheap node counter trips a single monotonic
+ * clock read every SEARCH_CLOCK_INTERVAL visited nodes so that one very large
+ * subtree cannot consume the whole budget unnoticed. The root also checks the
+ * clock before each candidate and before publishing any result.
+ */
+
+/* Milliseconds from an arbitrary fixed point (CLOCK_MONOTONIC never goes
+ * backwards, and only differences are ever used). */
+static int64_t now_ms(void)
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000 + (int64_t)ts.tv_nsec / 1000000;
+}
+
+/* Search state for the current turn only; reset at the start of every search. */
+static int search_timed_out;
+static int64_t search_deadline_ms;
+static unsigned long long search_nodes;
+
+#define WDL_WIN 1
+#define WDL_DRAW 0
+#define WDL_LOSS (-1)
+
+#if SEARCH_DEBUG
+/* Per-turn diagnostic counters, reset at the start of every turn so a turn
+ * that does not search reports zeros rather than the previous turn's state.
+ * search_terminals increments once per double-no-move WDL leaf (a cheap
+ * counter at an existing branch); it never counts network candidate scoring.
+ * search_completed_roots counts root moves whose exact value was accepted
+ * before the deadline, including losses, which never override the move. */
+static int search_terminals;
+static int search_completed_roots;
+static int search_best_proof = -2;  /* -2 none, -1 loss, 0 draw, +1 win */
+
+static const char *dbg_reason_name(int reason)
+{
+    switch (reason) {
+    case DBG_REASON_DISABLED: return "disabled";
+    case DBG_REASON_NON8: return "non8board";
+    case DBG_REASON_SINGLE: return "single_move";
+    case DBG_REASON_BUDGET: return "budget";
+    case DBG_REASON_CUTOFF: return "cutoff";
+    default: return "active";
+    }
+}
+
+static const char *dbg_proof_name(int proof)
+{
+    switch (proof) {
+    case WDL_WIN: return "win";
+    case WDL_DRAW: return "draw";
+    case WDL_LOSS: return "loss";
+    default: return "none";
+    }
+}
+#endif /* SEARCH_DEBUG */
+
+/* Reset the per-turn search state before the network is scored, so a turn that
+ * never invokes the search reports zero nodes and no timeout. */
+static void reset_search_diag(void)
+{
+    search_nodes = 0;
+    search_timed_out = 0;
+#if SEARCH_DEBUG
+    search_terminals = 0;
+    search_completed_roots = 0;
+    search_best_proof = -2;
+#endif
+}
+
+/* Number of set bits, used only for the terminal disc count. Standard C, no
+ * compiler builtin, so the file stays ordinary C11. */
+static int popcount64(u64 value)
+{
+    int count = 0;
+
+    while (value != 0) {
+        value &= value - UINT64_C(1);
+        ++count;
+    }
+    return count;
+}
+
+/* Index of the lowest set bit; the caller guarantees a nonzero value. */
+static int lowest_bit(u64 value)
+{
+    int index = 0;
+
+    while ((value & UINT64_C(1)) == 0) {
+        value >>= 1;
+        ++index;
+    }
+    return index;
+}
+
+/* Convert the character board to actor-relative bitboards: `mine` is the
+ * acting player's discs, `theirs` the opponent's, both row-major with a1 at
+ * bit 0, matching valid_moves()/flip_discs(). Empty squares are simply absent
+ * from both. */
+static void board_to_bits(const char *position, char actor, char opponent,
+                          u64 *mine, u64 *theirs)
+{
+    u64 m = 0;
+    u64 t = 0;
+    int square;
+
+    for (square = 0; square < BOARD_CELLS; ++square) {
+        if (position[square] == actor) {
+            m |= UINT64_C(1) << square;
+        } else if (position[square] == opponent) {
+            t |= UINT64_C(1) << square;
+        }
+    }
+    *mine = m;
+    *theirs = t;
+}
+
+/* Exact terminal value for the side to move, or an unspecified value with
+ * search_timed_out set. Standard fail-soft alpha/beta; the root's full window
+ * makes its result exact. */
+static int negamax(u64 mine, u64 theirs, int alpha, int beta)
+{
+    u64 moves;
+
+    ++search_nodes;
+    if ((search_nodes & (SEARCH_CLOCK_INTERVAL - 1u)) == 0u
+        && now_ms() >= search_deadline_ms) {
+        search_timed_out = 1;
+        return 0;
+    }
+
+    moves = valid_moves(mine, theirs);
+    if (moves == 0) {
+        if (valid_moves(theirs, mine) != 0) {
+            /* Forced pass: hand the move over without filling a square. */
+            int passed = negamax(theirs, mine, -beta, -alpha);
+
+            if (search_timed_out) {
+                return 0;
+            }
+            return -passed;
+        }
+        /* Neither side can move: the game is over, so count the discs. */
+        {
+            int m = popcount64(mine);
+            int t = popcount64(theirs);
+
+#if SEARCH_DEBUG
+            ++search_terminals;
+#endif
+            return (m > t) ? WDL_WIN : ((m < t) ? WDL_LOSS : WDL_DRAW);
+        }
+    }
+
+    {
+        int best = WDL_LOSS - 1;
+        u64 remaining = moves;
+
+        while (remaining != 0) {
+            int square = lowest_bit(remaining);
+            u64 flips = flip_discs(mine, theirs, square);
+            u64 next_mine = mine | (UINT64_C(1) << square) | flips;
+            u64 next_theirs = theirs & ~flips;
+            int value;
+
+            remaining &= remaining - 1;
+            /* Hand the position to the opponent: their discs become the new
+             * side to move and ours become the opponent plane. */
+            value = negamax(next_theirs, next_mine, -beta, -alpha);
+            if (search_timed_out) {
+                return 0;
+            }
+            value = -value;
+            if (value > best) {
+                best = value;
+            }
+            if (best > alpha) {
+                alpha = best;
+            }
+            if (alpha >= beta) {
+                break;
+            }
+        }
+        return best;
+    }
+}
+
+/* Prove the best nonlosing supplied move and return its index in `moves`, or
+ * -1 to keep the neural-network move that was already chosen. `nn_index` is
+ * searched first and every other move keeps its supplied order.
+ *
+ * Each root move is searched to the end against all opponent replies. A
+ * completed win returns at once; a completed draw is retained while the rest
+ * are tried for a win; a timeout abandons the unfinished move (and everything
+ * after it) and keeps any proof already completed. A move whose exact value is
+ * a loss is never selected, so when no move proves a win or draw the network's
+ * choice stands. */
+static int search_root_move(const char *position, char moves[][MAX_COORD_LEN],
+                            int action_count, int board_size,
+                            char actor, char opponent, int nn_index,
+                            int64_t deadline_ms)
+{
+    u64 mine;
+    u64 theirs;
+    int best_value = WDL_LOSS - 1;
+    int best_index = -1;
+    int order[BOARD_CELLS];
+    int count = 0;
+    int tried;
+    int i;
+
+    search_timed_out = 0;
+    search_nodes = 0;
+    search_deadline_ms = deadline_ms;
+    board_to_bits(position, actor, opponent, &mine, &theirs);
+
+    order[count++] = nn_index;
+    for (i = 0; i < action_count; ++i) {
+        if (i != nn_index) {
+            order[count++] = i;
+        }
+    }
+
+    for (tried = 0; tried < count; ++tried) {
+        int index = order[tried];
+        int square = coord_to_square_index(moves[index], board_size);
+        u64 flips;
+        u64 next_mine;
+        u64 next_theirs;
+        int value;
+
+        if (search_timed_out) {
+            break;
+        }
+        if (now_ms() >= deadline_ms) {
+            /* Budget exhausted before this candidate: mark the timeout so the
+             * diagnostic is accurate, and fall back exactly as before. */
+            search_timed_out = 1;
+            break;
+        }
+        if (square < 0) {
+            continue;
+        }
+        flips = flip_discs(mine, theirs, square);
+        next_mine = mine | (UINT64_C(1) << square) | flips;
+        next_theirs = theirs & ~flips;
+
+        /* The opponent is to move in the child position. */
+        value = negamax(next_theirs, next_mine, -1, 1);
+        if (search_timed_out) {
+            break;
+        }
+        if (now_ms() >= deadline_ms) {
+            /* Finished after the deadline: not publishable, treat as unproven. */
+            search_timed_out = 1;
+            break;
+        }
+        value = -value; /* back to the root mover's perspective */
+
+#if SEARCH_DEBUG
+        ++search_completed_roots;
+#endif
+        if (value > best_value) {
+            best_value = value;
+            best_index = index;
+        }
+        if (value == WDL_WIN) {
+            break;
+        }
+    }
+
+#if SEARCH_DEBUG
+    search_best_proof = best_value;
+#endif
+    if (best_value >= WDL_DRAW) {
+        return best_index;
+    }
+    return -1;
+}
+
 /* ------------------------------ input helpers ---------------------------- */
 
 /* Read one whitespace-delimited token into `buffer`, of any line layout.
@@ -350,8 +696,17 @@ int main(int argc, char **argv)
     int action_count = 0;
     int i;
     int turn = 0;
+    int best_index = -1;
+    int64_t turn_start_ms = 0;
+    int64_t deadline_ms = 0;
     char actor;
     char opponent;
+#if SEARCH_DEBUG
+    char nn_best[MAX_COORD_LEN];
+    int dbg_empties = 0;
+    int dbg_on = 0;
+    int dbg_reason = DBG_REASON_CUTOFF;
+#endif
 
     /* The local wrapper still passes a seed argument. Greedy play needs no RNG,
      * so it is accepted and ignored. */
@@ -396,6 +751,11 @@ int main(int argc, char **argv)
             if (!read_value(buffer, sizeof buffer)) {
                 return 0; /* EOF: the game ended normally. */
             }
+            if (i == 0) {
+                /* Start the turn clock as soon as the first row arrives, so
+                 * the wait for input is not charged to the search budget. */
+                turn_start_ms = now_ms();
+            }
             for (col = 0; col < board_size; ++col) {
                 char cell = buffer[col];
                 if (cell != CELL_EMPTY && cell != CELL_BLACK && cell != CELL_WHITE) {
@@ -421,6 +781,9 @@ int main(int argc, char **argv)
             }
         }
 
+        deadline_ms = turn_start_ms + SEARCH_BUDGET_MS;
+        reset_search_diag();
+
         if (action_count == 0) {
             /* No legal move: the platform drives passes itself, so wait for
              * the next board instead of printing a move. */
@@ -429,6 +792,7 @@ int main(int argc, char **argv)
         }
 
         /* Highest score wins; strictly greater keeps the earliest of any tie. */
+        best_index = -1;
         for (i = 0; i < action_count; ++i) {
             fp32 candidate = score(board, moves[i], board_size, actor, opponent);
             if (candidate < 0.0f) {
@@ -437,13 +801,63 @@ int main(int argc, char **argv)
             }
             if (!have_best || candidate > best_score) {
                 best_score = candidate;
+                best_index = i;
                 strcpy(best, moves[i]);
                 have_best = 1;
             }
         }
 
-        if (!have_best) {
+        if (!have_best || best_index < 0) {
             return 1;
+        }
+
+#if SEARCH_DEBUG
+        strcpy(nn_best, best);
+#endif
+
+        /* Decide whether to run the terminal-only search and record, for the
+         * diagnostic only, why it is skipped. The network move above stays the
+         * fallback whenever the search proves nothing useful. */
+        {
+            int empties = 0;
+            int search_on;
+
+            for (i = 0; i < board_size * board_size; ++i) {
+                if (board[i] == CELL_EMPTY) {
+                    ++empties;
+                }
+            }
+            search_on = (board_size == 8) && (action_count > 1)
+                        && (now_ms() < deadline_ms)
+                        && (empties <= SEARCH_MAX_EMPTIES);
+#if SEARCH_DEBUG
+            dbg_empties = empties;
+            dbg_on = search_on;
+#if SEARCH_MAX_EMPTIES == 0
+            dbg_reason = DBG_REASON_DISABLED;
+#else
+            if (board_size != 8) {
+                dbg_reason = DBG_REASON_NON8;
+            } else if (action_count <= 1) {
+                dbg_reason = DBG_REASON_SINGLE;
+            } else if (now_ms() >= deadline_ms) {
+                dbg_reason = DBG_REASON_BUDGET;
+            } else if (empties > SEARCH_MAX_EMPTIES) {
+                dbg_reason = DBG_REASON_CUTOFF;
+            } else {
+                dbg_reason = DBG_REASON_ACTIVE;
+            }
+#endif
+#endif
+            if (search_on) {
+                int proven = search_root_move(board, moves, action_count,
+                                              board_size, actor, opponent,
+                                              best_index, deadline_ms);
+                if (proven >= 0) {
+                    best_index = proven;
+                    strcpy(best, moves[proven]);
+                }
+            }
         }
 
         /* The platform expects one of the strings it supplied, so play the move
@@ -457,6 +871,19 @@ int main(int argc, char **argv)
             }
             square_index_to_coord(square, board_size, buffer);
         }
+
+#if SEARCH_DEBUG
+        fprintf(stderr,
+                "[DBG] turn=%d empties=%d search=%s reason=%s nn=%s played=%s "
+                "nodes=%llu terminals=%d roots=%d proof=%s timeout=%s "
+                "elapsed=%lldms\n",
+                turn, dbg_empties, dbg_on ? "on" : "off",
+                dbg_reason_name(dbg_reason), nn_best, best,
+                (unsigned long long)search_nodes, search_terminals,
+                search_completed_roots, dbg_proof_name(search_best_proof),
+                search_timed_out ? "yes" : "no",
+                (long long)(now_ms() - turn_start_ms));
+#endif
 
         printf("%s\n", best);
         fflush(stdout);
