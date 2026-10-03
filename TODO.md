@@ -234,3 +234,5 @@ I001–I006 are resolved. They covered an invalid EMPTY forfeit actor, incorrect
 
 - T087 authorized2026-10-03: commit/push prepared work, continue Generation015best via hosted5000/1000 round seed90010/190010 with unchangedC8 training settings. Dispatch/results pending.
 - T088 authorized: OpenCode C terminal-only negamax, save NN fallback and respect remaining turn time; Luna focused review. Activation cutoff pending user selection. No opening-book review/integration or minification in this chunk.
+
+- T087 localcommit18ee53a completed2026-10-03 with explicit inspectedfile staging; Python syntax and gitdiffchecks passed. Push/GitHubdispatch remain unrun: automatic approval rejected unrestrictedstaging+masterpush; user asked to explicitlyapprove origin/masterpush and configuredrun. Cnegamax draft work/c-negamax-task-draft.md prepared only; activation/time settings pendinguserselection, no OpenCodeimplementation dispatched.
