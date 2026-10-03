@@ -28,7 +28,7 @@ Bot SETTINGS/version convention agreed 2026-09-30: each bot exposes `get_id()`, 
 
 The primary Codex chat is for design, supervision, review, and brainstorming. Keep code and large/raw logs out of that chat; deliver short summaries and file links.
 
-Implementation is delegated to OpenCode. Use `opencode/space-bunny-free` (Space Bunny Free) for the next coding task, as requested by the user after the initial LongCat tasks were slow. Do not silently substitute another model. Keep tasks small with the same scope limits regardless of model.
+Implementation is delegated to the persistent verified OpenCode session. User update2026-10-02: the user selects model and reasoning in OpenCode; Codex must omit model/reasoning overrides when submitting tasks. Keep tasks simple and well scoped with defined parameters regardless of selected model. Watch for observed performance degradation (task duration, repeated corrections, scope drift), without assuming persistent context guarantees speed.
 
 For implementation prompts explicitly pass `--agent build`: the T034 prompt inherited Plan mode and returned only a plan, with no file changes. An explicit model flag does not select the implementation agent. Retain Plan mode for planning-only requests when intended.
 
@@ -53,3 +53,9 @@ Evaluation shortcut agreed 2026-10-01: for parent/candidate matches, clone the c
 Training progression preference agreed 2026-10-01: use the latest selected trained model for both self-play seats and continue improving that model by default. Use its best.pt (best-validation checkpoint), not last.pt merely because it is the final epoch. Continue model weights with a fresh Adam optimizer under current agreed settings unless the user chooses otherwise. Preserve parent/candidate checkpoints separately; do not switch back to an older model or fresh initialization without a specific user-selected reason. This preference does not authorize automatic jobs.
 
 Bunny task granularity clarified 2026-10-01: one concrete deliverable per prompt. Build the C bot first, then assign the wrapper as a separate task after its handoff. Do not bundle components or describe future implementation tasks in the current prompt. T054 was already running and the user explicitly let it finish.
+
+Routing correction2026-10-02: previous sessionID is historical, not authorization to assume current terminal selection. Hello notification receipt alone does not verify visible terminal delivery. Obtain current displayed title/ID before dispatch after a session change/resumption; session list/session.active/process cwd cannot establish selected idle conversation. See docs/opencode-workflow.md investigation.
+
+- User identified displayed title Date reference: 2 Oct 2026. Server-wide opencode api session.list resolved exact title to ses_f033c2b2bffebSUyg2NWGzTWRA, location /home/paul/dev/othello, agentbuild. Project-filtered opencode session list omitted this session. Use server-wide API list matched to user-visible title/ID, not CLI list alone. Notification registration refreshed; corrected hello marker OPENCODE-HELLO-20261002-02 to be dispatched without model/reasoning overrides. Visible terminal receipt pending.
+
+- 2026-10-02: User explicitly confirms OPENCODE-HELLO-20261002-02 appeared in the open terminal. Current visible session verified: Date reference: 2 Oct 2026, ses_f033c2b2bffebSUyg2NWGzTWRA. User-selected model today: DeepSeek Flash4.1. Continue without model/reasoning overrides; tightly bounded tasks, performance judged from observed timings/corrections.

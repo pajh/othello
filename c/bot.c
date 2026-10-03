@@ -1,14 +1,18 @@
 /* ==========================================================================
  * CodinGame multiplayer Othello bot — greedy embedded neural network.
  *
- * SETTINGS / VERSION 003. Every supplied legal move is applied to the current
+ * SETTINGS / VERSION 005. Every supplied legal move is applied to the current
  * board, the resulting position is encoded from this seat's perspective and
  * scored by the embedded network, and the highest score is played. Greedy from
  * the very first move: no random opening, no sampling, no search, and no
- * legal-move generator, because the platform supplies every legal move.
+ * legal-move generator for choosing moves, because the platform supplies
+ * every legal move. Standalone bitboard legal-move and flip-mask functions
+ * are present for future consumers; neither participates in current choice.
  *
  * Version history: 001 played a random legal move; 002 removed the routine
- * per-turn logging; 003 replaced random scoring with the embedded network.
+ * per-turn logging; 003 replaced random scoring with the embedded network;
+ * 004 added a portable bitboard legal-move function without changing choice;
+ * 005 added a portable scalar bitboard flip-mask function, also unused.
  *
  * Ordinary mode only (no EXPERT input). Input contract, per turn:
  *
@@ -43,6 +47,7 @@
  * ========================================================================== */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -50,11 +55,88 @@
 #include "model.h"
 #include "model_decode.h"
 
+typedef uint64_t u64;
+
 /* ------------------------------- SETTINGS -------------------------------- */
 /* Bot identity for local runs and reports. Increment on each completed
  * revision of this file, as with the Python bots. */
-#define VERSION "003"
+#define VERSION "005"
 #define BOTNAME "C-NN"
+
+/*
+ * Scalar one-stage parallel-prefix legal-move calculation adapted from
+ * Richard Delorme's Edax 4.6 board.c:
+ * https://raw.githubusercontent.com/abulmo/edax-reversi/master/src/board.c
+ * Edax is distributed under GNU GPL version 3:
+ * https://github.com/abulmo/edax-reversi/blob/master/LICENSE
+ *
+ * The bit index is row * 8 + column (a1 is the top-left square). The function
+ * remains unused by the current supplied-move chooser.
+ */
+static inline u64 get_some_moves(u64 player, u64 mask, int direction)
+{
+    u64 flip_left;
+    u64 flip_right;
+    u64 mask_left;
+    u64 mask_right;
+    const int direction2 = direction + direction;
+
+    flip_left = mask & (player << direction);
+    flip_right = mask & (player >> direction);
+    flip_left |= mask & (flip_left << direction);
+    flip_right |= mask & (flip_right >> direction);
+    mask_left = mask & (mask << direction);
+    mask_right = mask & (mask >> direction);
+    flip_left |= mask_left & (flip_left << direction2);
+    flip_right |= mask_right & (flip_right >> direction2);
+    flip_left |= mask_left & (flip_left << direction2);
+    flip_right |= mask_right & (flip_right >> direction2);
+
+    return (flip_left << direction) | (flip_right >> direction);
+}
+
+static inline u64 valid_moves(u64 mine, u64 theirs)
+{
+    const u64 opponent_mask = theirs & UINT64_C(0x7E7E7E7E7E7E7E7E);
+    const u64 empty = ~(mine | theirs);
+
+    return (get_some_moves(mine, opponent_mask, 1)
+          | get_some_moves(mine, theirs, 8)
+          | get_some_moves(mine, opponent_mask, 7)
+          | get_some_moves(mine, opponent_mask, 9)) & empty;
+}
+
+/* Return only opponent discs flipped by playing `square` (0..63), under the
+ * caller contract that the square is empty and legal. Bits use the same
+ * row-major mapping as valid_moves(). This bounded scalar ray scan is portable
+ * and table-free; it does not modify either input board. */
+static inline u64 flip_discs(u64 mine, u64 theirs, int square)
+{
+    static const int row_step[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    static const int col_step[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    const int origin_row = square / 8;
+    const int origin_col = square % 8;
+    u64 flips = 0;
+    int direction;
+
+    for (direction = 0; direction < 8; ++direction) {
+        int row = origin_row + row_step[direction];
+        int col = origin_col + col_step[direction];
+        u64 ray = 0;
+
+        while (row >= 0 && row < 8 && col >= 0 && col < 8) {
+            const u64 bit = UINT64_C(1) << (row * 8 + col);
+            if ((theirs & bit) == 0) {
+                if ((mine & bit) != 0) flips |= ray;
+                break;
+            }
+            ray |= bit;
+            row += row_step[direction];
+            col += col_step[direction];
+        }
+    }
+    return flips;
+}
 
 /* Maximum board size this bot can hold. 8 is the Othello board; the constant
  * exists so the buffers below are fixed size and nothing is allocated. */

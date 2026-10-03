@@ -1,8 +1,8 @@
 /* ==========================================================================
  * Byte-equivalence smoke for the embedded model reconstruction.
  *
- * Loads the parameters from the Base64 header through c/model_decode.h and
- * compares the reconstructed bytes against an existing reference blob. The
+ * Loads the parameters from the embedded Z85 header through c/model_decode.h
+ * and compares the reconstructed bytes against an existing reference blob. The
  * question is only "are these the same 198,148 bytes", so the test uses memcmp
  * and no score tolerance at all: a changed weight must not be papered over by
  * a numeric threshold here.
@@ -114,8 +114,8 @@ int main(int argc, char **argv)
     printf("codebook centers: %u\n", (unsigned)MODEL_CODEBOOK_COUNT);
     printf("parameters:     %u\n", (unsigned)MODEL_PARAMETER_COUNT);
     printf("payload bytes:  %u\n", (unsigned)MODEL_PAYLOAD_BYTES);
-    printf("base64 chars:   %u (decoded, NUL excluded)\n",
-           (unsigned)MODEL_BASE64_LENGTH);
+    printf("z85 chars:      %u (decoded, NUL excluded)\n",
+           (unsigned)MODEL_Z85_LENGTH);
     printf("decoded bytes:  %u\n", (unsigned)MODEL_DECODED_BYTES);
     printf("payload CRC32:  actual 0x%08lx expected 0x%08lx\n",
            (unsigned long)payload_crc, (unsigned long)MODEL_PAYLOAD_CRC32);

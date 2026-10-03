@@ -25,3 +25,19 @@ Project root `opencode.json` loads `./plugins/codex-notify` as a directory. This
 Automatic notification `OPENCODE-HOOK-IDLE-03` was visibly received and acknowledged after the design chat became idle. An earlier queue-accepted notice during an active turn was not visibly received. Thus idle delivery has been verified; delivery during active turns remains uncertain. Notifications were last recorded as enabled. Check `bash scripts/notify_codex.sh status` and the local hook/notification logs rather than assuming current state.
 
 The plugin is project-local; no global package was installed. If it is not loaded, verify `opencode.json`, then use the installed version's documented reload flow without interrupting active work. Avoid polling: dispatch one task, end the design turn, and review its saved handoff when the notification arrives.
+
+## Return-trip verification — 2026-10-02
+
+OPENCODE-HELLO-20261002-01 returned visibly to design chat01a0fc6d-1e07-70f3-874f-1fa07d1efb6c from session ses_f09b671eaffeJHQOKjugvgpYJR. Dispatched with --agent build and without model/reasoning overrides. This verifies this hello round trip; no broader active-turn reliability claim.
+
+## Visible-session routing correction — 2026-10-02
+
+User reports hello was routed to the wrong visible terminal session. Earlier return-trip verification proves notification delivery from the addressed session only, not that the terminal displayed it. Do not treat that as visible-session verification.
+
+Read-only investigation: interactive opencode process on pts/1 has cwd /home/paul/dev/othello but no --session argument. Installed2.0.22 session list describes saved top-level sessions; session.active API describes foreground execution drains, not displayed clients, and returned empty while idle. session.view marks idle notification viewed; it is not a current-session query. Terminal state /home/paul/.local/state/opencode/latest/tui/tabs.json contained no Othello tabs. App terminal reader found no attached terminal. These checks do not identify a displayed conversation.
+
+Before dispatch, obtain the conversation title/sessionID actually displayed by the user, map exact title through session list, and resolve ambiguity rather than using recency or yesterday's registration. Confirm marker appears in that terminal; notification return alone is insufficient. No new message sent during this investigation. Current session identity pending user response.
+
+- User identified displayed title Date reference: 2 Oct 2026. Server-wide opencode api session.list resolved exact title to ses_f033c2b2bffebSUyg2NWGzTWRA, location /home/paul/dev/othello, agentbuild. Project-filtered opencode session list omitted this session. Use server-wide API list matched to user-visible title/ID, not CLI list alone. Notification registration refreshed; corrected hello marker OPENCODE-HELLO-20261002-02 to be dispatched without model/reasoning overrides. Visible terminal receipt pending.
+
+- 2026-10-02: User explicitly confirms OPENCODE-HELLO-20261002-02 appeared in the open terminal. Current visible session verified: Date reference: 2 Oct 2026, ses_f033c2b2bffebSUyg2NWGzTWRA. User-selected model today: DeepSeek Flash4.1. Continue without model/reasoning overrides; tightly bounded tasks, performance judged from observed timings/corrections.

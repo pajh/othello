@@ -21,7 +21,6 @@ CHECKPOINT = (ROOT / 'checkpoints/first-model/run-2103bc51994e46a099f8b3d78618ef
 GAMES = 5000
 SEED = 90001
 WORKERS = 1
-BOT_ID = 'NN-006-R2-T0.05-C8'
 BOT_MODULE = 'bots.nn_bot'
 SEED_DERIVATION = 'sha256-first-8-bytes-big-endian:{master_seed}:{game_index}:{bot_id}'
 #: Execution fields a run's metadata.json may record, and what a run written
@@ -104,6 +103,20 @@ def derived_seed(master_seed, game_index, bot_id):
     return int.from_bytes(hashlib.sha256(source).digest()[:8], 'big')
 
 
+def launch_bot_id(checkpoint):
+    """Return the canonical bot's actual ID for *checkpoint*.
+
+    The ID comes from ``bots.nn_bot.get_id()``, the single source of the
+    collection identity, so it cannot drift out of step with the bot that
+    actually plays. The checkpoint environment variable is set first because
+    importing the module loads the checkpoint. Called only on the collection
+    path, never for ``--help``.
+    """
+    os.environ['OTHELLO_NN_CHECKPOINT'] = str(checkpoint)
+    import bots.nn_bot
+    return bots.nn_bot.get_id()
+
+
 def largest(counts):
     return max(counts.values(), default=0)
 
@@ -151,20 +164,26 @@ def review_run(run_dir, provenance=None, elapsed=None):
                 provenance = json.loads(pending.read_text(encoding='utf-8'))
     require(metadata['bot1_module'] == BOT_MODULE and metadata['bot2_module'] == BOT_MODULE,
             'run bot modules do not match expected NN module')
-    require(metadata['bot1_id'] == BOT_ID and metadata['bot2_id'] == BOT_ID,
-            'run bot IDs do not match expected %s' % BOT_ID)
+    # The identity comes from the run's own retained records, not from whichever
+    # bot source is current, so reviewing a historical run is independent of the
+    # present code. This self-play helper additionally requires both seats to
+    # report the same ID, and any saved launch provenance must agree with it.
+    bot1_id = metadata['bot1_id']
+    bot2_id = metadata['bot2_id']
+    require(bot1_id == bot2_id,
+            'run bot1/bot2 IDs differ (%r vs %r) for this self-play helper'
+            % (bot1_id, bot2_id))
     require(metadata['starting_player_mode'].startswith('alternating'),
             'run does not use alternating starting colours')
     require(metadata['seed_derivation'] == SEED_DERIVATION,
             'run uses an unexpected per-bot seed derivation')
     if provenance:
-        for field in ('master_seed', 'requested_games', 'bot_id', 'checkpoint'):
-            if field in ('bot_id', 'checkpoint'):
-                continue
+        for field in ('master_seed', 'requested_games'):
             require(metadata[field] == provenance[field],
                     'metadata %s disagrees with saved launch provenance' % field)
-        require(provenance['bot_id'] == BOT_ID,
-                'saved provenance bot ID does not match expected bot')
+        require(provenance['bot_id'] == bot1_id,
+                'saved provenance bot ID %r disagrees with retained run ID %r'
+                % (provenance.get('bot_id'), bot1_id))
 
     requested = metadata['requested_games']
     seed = metadata['master_seed']
@@ -241,8 +260,8 @@ def review_run(run_dir, provenance=None, elapsed=None):
             'alternating colour totals are inconsistent: %s' % black_games)
     require(summary_path.is_file(), 'CLI run-summary.txt is missing')
     summary = summary_path.read_text(encoding='utf-8')
-    for expected in ('bot 1 ID: %s (%s)' % (BOT_ID, BOT_MODULE),
-                     'bot 2 ID: %s (%s)' % (BOT_ID, BOT_MODULE),
+    for expected in ('bot 1 ID: %s (%s)' % (bot1_id, BOT_MODULE),
+                     'bot 2 ID: %s (%s)' % (bot2_id, BOT_MODULE),
                      'state: completed', 'master seed: %d' % seed,
                      'seed derivation: %s' % SEED_DERIVATION,
                      'starting player mode: alternating'):
@@ -274,7 +293,7 @@ def review_run(run_dir, provenance=None, elapsed=None):
         'status: checked; descriptive measures only, no thresholds',
         'run directory: %s' % run_dir,
         'checkpoint: %s' % (provenance.get('checkpoint') if provenance else 'unknown (no saved launch provenance)'),
-        'bot IDs: %s / %s' % (BOT_ID, BOT_ID),
+        'bot IDs: %s / %s' % (bot1_id, bot2_id),
         'master seed: %d' % seed,
         'requested/completed: %d / %d' % (requested, completed),
         'normal terminations: %d; forfeits: %d; draws: %d' % (normal, forfeits, draws),
@@ -305,7 +324,7 @@ def review_run(run_dir, provenance=None, elapsed=None):
     check = [
         'status: passed', 'run directory: %s' % run_dir,
         'checkpoint: %s' % (provenance.get('checkpoint') if provenance else 'unknown'),
-        'bot IDs: %s / %s' % (BOT_ID, BOT_ID),
+        'bot IDs: %s / %s' % (bot1_id, bot2_id),
         'seed: %d' % seed, 'games: requested %d; completed %d' % (requested, completed),
         'normal terminations: %d; forfeits: %d' % (normal, forfeits),
         'Black assignments: bot 1=%d; bot 2=%d' % (black_games[1], black_games[2]),
@@ -331,8 +350,11 @@ def collect(args):
     provenance_path = output / 'collection-provenance-pending.json'
     require(not provenance_path.exists(),
             'pending provenance already exists; inspect it and use --review-run if collection completed')
+    # The collection identity is whatever the canonical bot reports for this
+    # checkpoint, so it can never disagree with the module the runner launches.
+    bot_id = launch_bot_id(checkpoint)
     provenance = {
-        'bot_id': BOT_ID, 'bot_module': BOT_MODULE,
+        'bot_id': bot_id, 'bot_module': BOT_MODULE,
         'checkpoint': str(checkpoint), 'master_seed': args.seed,
         'requested_games': args.games,
         'workers_requested': args.workers,
@@ -347,8 +369,8 @@ def collect(args):
                '--bot2', BOT_MODULE, '--games', str(args.games),
                '--seed', str(args.seed), '--workers', str(args.workers),
                '--output-dir', str(output)]
-    print('Checkpoint: %s\nSeed: %d\nGames: %d\nWorkers: %d\nStarting CLI collection.'
-          % (checkpoint, args.seed, args.games, args.workers), flush=True)
+    print('Checkpoint: %s\nBot ID: %s\nSeed: %d\nGames: %d\nWorkers: %d\nStarting CLI collection.'
+          % (checkpoint, bot_id, args.seed, args.games, args.workers), flush=True)
     started = time.perf_counter()
     process = subprocess.Popen(command, cwd=ROOT, env=env)
     run_dir = None

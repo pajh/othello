@@ -14,7 +14,7 @@ Commands below run from the repository root and use the existing `venv/`. They a
 | `scripts/smoke.py` | One direct random/random engine smoke, without the batch CLI. |
 | `scripts/export_nn_blob.py` | Export a selected PyTorch checkpoint to a raw parameter blob and layout report. |
 | `scripts/quantize_nn_blob.py` | Fit the selected shared 256-center codebook and write indices plus reconstructed float blob. Requires the already-installed scikit-learn in this environment. |
-| `scripts/embed_nn_codebook.py` | Base64-encode codebook and indices into `model.h`, with payload and reconstructed-model CRC32 values. No compression. |
+| `scripts/embed_nn_codebook.py` | Z85-encode codebook and indices into `model.h`, with payload and reconstructed-model CRC32 values. No compression. |
 | `scripts/generate_nn_test_csv.py` | Produce replay-board inputs and matching PyTorch scores from an NPZ dataset/checkpoint. |
 | `scripts/scrunch.py` | Assemble the listed local C headers into a one-file source and report its character count. |
 | `scripts/notify_codex.sh` | Project-local OpenCode completion notification controls; details in [notification-workflow.md](notification-workflow.md). |
@@ -139,7 +139,7 @@ ASAN_OPTIONS=detect_leaks=1 ./build/test-nn-compare runs/c-model-export/model.bi
 cat runs/c-forward-check/forward-summary.txt
 ```
 
-Quantize the exact exported blob. This uses one shared 256-float32-value codebook for all weights and biases, plus one uint8 index per parameter. It writes `codebook.bin` (1,024 bytes), `indices.bin` (49,537 bytes), a reconstructed `model.bin`, and a summary. The packed payload is 50,561 bytes before Base64/header text.
+Quantize the exact exported blob. This uses one shared 256-float32-value codebook for all weights and biases, plus one uint8 index per parameter. It writes `codebook.bin` (1,024 bytes), `indices.bin` (49,537 bytes), a reconstructed `model.bin`, and a summary. The packed payload is 50,561 bytes before Z85/header text.
 
 ```sh
 venv/bin/python scripts/quantize_nn_blob.py \
@@ -159,7 +159,7 @@ cat runs/c-quantized-check/forward-summary.txt
 
 The strict FP32 tolerance is expected to fail after quantization; mean/max error measure the changed scores. The retained run measured mean absolute error 0.0008242 and maximum 0.0086673 with no invalid scores. Playing strength is measured separately.
 
-Embed the quantized codebook and indices as Base64 (encoding only; no DEFLATE or other compression). Output is `model.h` plus `embedding-summary.txt`; the generated header contains payload and reconstructed-FP32 CRC32 checksums and enforces a 75,000-character header limit.
+Embed the quantized codebook and indices as Z85 (encoding only; no DEFLATE or other compression). Output is `model.h` plus `embedding-summary.txt`; the generated header contains payload and reconstructed-FP32 CRC32 checksums and enforces a 75,000-character header limit. Three zero padding bytes make the 50,561-byte true payload divisible by 4; the decoder checks and discards only those known bytes.
 
 ```sh
 venv/bin/python scripts/embed_nn_codebook.py \
@@ -197,7 +197,7 @@ cc -std=c11 -O1 -g -Wall -Wextra -fsanitize=address,undefined \
 ASAN_OPTIONS=detect_leaks=1 build/test-nn
 ```
 
-The current packed model payload is 50,561 bytes (1024-byte codebook plus 49,537-byte index stream). Base64 is not compressed; source text also includes C code and is subject to the separate 100,000-character CodinGame limit.
+The current packed model payload is 50,561 bytes (1024-byte codebook plus 49,537-byte index stream), Z85-encoded as 63,205 characters. Z85 is not compressed; source text also includes C code and is subject to the separate 100,000-character CodinGame limit.
 
 ## 5. Build and scrunch the CodinGame submission
 

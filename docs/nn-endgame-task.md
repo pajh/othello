@@ -1,0 +1,11 @@
+# T078 — exact terminal endgame minimax in canonical Python NN bot
+
+Single deliverable: add configurable exactendgamesearch to src/bots/nn_bot.py, with docs/nn-endgame-handoff.md. Onlythese2fileseditable; scratchwork/nn-endgame allowed. Nootherbots/helpers/workflows/engine/training/C/modelchanges. Nojobs/games/training/benchmarks/commit/push.
+
+Prominent SETTINGS COUNT_LEFT=0(defaultdisabled), integer0..60 (rejectbool). Positiveactivates when currentboardemptycount<=COUNT_LEFT. CurrentVERSION004 ->005 forcompletedrevision; ID includescutoff e.g.NN-005-R2-T0.05-C0. RetainRANDOM_MOVES2/TEMPERATURE0.05/checkpointloadingonce/batchedinferenceoutsidecutoff. Existingmodel/checkpointselectionunchanged.
+
+Ordinaryminimax(ornegamax) withalpha-beta pruning permitted. UserrequiresALLsearchedleavesterminal(engine.is_terminal); noNNleaf/depth/time/nodecutoff/heuristicfallback. Terminalvaluewin/draw/loss+1/0/-1 from rootplayerperspective; noadditionaldiscdifferentialobjective. Forcedpassswitchesplayeronunchangedboard, continuesuntilbothcannotmove. Userenginelegal_moves/apply_move/is_terminal/winner; don'tduplicaterules. No transpositiontable/moveorderingframework/performanceextrasforfirstrevision. Localsearchstateonly,nosharedmutablecache/modelwrites.
+
+Atrootsearchsuppliedlegalmovesinexistingorder, choosefirstbest provenoutcome. DoNOTtemperature-sampleprovenoutcomes. Applysolverinbothmodule-levelplayandfactory configuredpath; keepfirsttwoownrandommovesasexistingpriority(factory opening precedessearch). No legalmovesreturnsNoneasbefore. Singlelegalmove mayreturndirectly. COUNT_LEFT0mustbypasssolverbeforeanysearchwork andpreserveoldmove/RNGchoicesexactlywithidenticalinputsandRNGstates. Allowalphabeta toskipirrelevantbranches butneverassignvalueatononterminalleaf. Updateonlystaledocstringsaffectedbychange.
+
+Allowedchecks: syntax andsmall syntheticterminal/pass casesusingstubNN ifneeded; noactualgames/matches. Keepchecksfocused. Do notbuildexhaustivetests. The userwillrunzero-cutoffequivalence then cutoff8or10 vs0 in laterseparatelyscopedverificationtask. BotIDchangesalterrigderivedRNGseeds, so equivalencemustuseidenticalper-seatRNGstreams, notsameCLIseedalone. Documentthisandactualchecks inhandoff; noverificationhelperinthischunk. Noeffectivestrengthclaim. Finishhandoffandstop.

@@ -154,3 +154,83 @@ I001–I006 are resolved. They covered an invalid EMPTY forfeit actor, incorrect
 - [x] T070 — retrieve/summarize second symmetry-hosted round, preserve candidate/parent/reports; record userCG17thWood2. Further adoption/CGrefresh/experiment awaits user selection.
 
 - [x] T071 — push Generation009candidate asbest and dispatch unchanged hosted5000/1000 round seed90006; CGrebuild deferred.
+
+- [x] T072 — retrieve third symmetryround/results and agreedaftermeal rebuildCGsubmission from newcandidate; bytecheck/compile/onegame complete, userCGsubmissionnext.
+
+- Open decision (2026-10-02): opening-book source, character budget, coverage/handoff and deployment-only versus training use. User reports #1 Wood2 below BOSS. Current source leaves12225characters; preserve current R2/T0.05 self-play until user selects a change. Discussion only, no implementation task allocated.
+
+- Agreed design direction2026-10-02: C-only opening lines encoded as0..63square indices, symmetry-aware history-prefix lookup and NN fallback. Decide source/continuations before bounded implementation.
+- Idea (not agreed implementation): Python bots might later sample randomly from a3–4move opening book; current R2/T0.05 training/evaluation remain unchanged.
+
+- T073 — Edaxbookgenerator6broad/8total: userselected locallevel14 process/outputcheck before hostedlevel38. OpenCode implementationdispatch prepared; onlygenerator/handoff, noanalysisruns. Runtime~1minuteistargetnotmeasurement; hostedworkflow/jobseparateafterreview.
+
+- T073 cancelledbyuser after~5minutes Edaxsourceinvestigation; no scripts/generate_edax_book.py or generatorhandoff exists. Scope was too broad. Prepared narrowerT073a docs/edax-query-task.md: one sequentialquery, knownexistingbookprecondition, nohistoricalstartupresearch/source-reading/concurrency. Notdispatched; fullgenerator remainsdeferred.
+
+- UserreplacesT073combinedplanwith3stages: prefixenumerationonly, Edaxreplyaddition, narrowextension. T073bprepared docs/opening-prefix-task.md: alllegal0..depthinclusive comma-separatedhistories; noEdax. Querytaskdeferred. Own-policyfilteringandfourtransformencoding remainlaterwork.
+
+- T073b complete: scripts/generate_opening_prefixes.py and docs/opening-prefix-handoff.md delivered. Sourceinspectionconfirmsengine-basedDFS/all0..depthinclusive/comma-separatedhistories. OpenCodereportsdepth2check17legaluniquerows and guards passed; primary didnotrerunchecks. Depth6user-runpending; noEdaxquery/generation.
+
+- T074 userauthorizesexistingprefixfilefour-symmetryreduction; task docs/opening-symmetry-task.md, separatecanonicalfile/inputpreserved. Expected2479rowsincludingempty. OpenCodeimplementationdispatch; fullreductionuser-run.
+
+- T074complete: scripts/canonicalize_opening_prefixes.py and docs/opening-symmetry-handoff.md. OpenCodereportssyntheticempty+4openingcheck->2rows, idempotence/passchecks andoutputrefusalpassed; observedtransformpair/indexbugfixed. Full9913->2479reductionuser-runpending; noEdax/policyfilter.
+
+- T075 authorized: evaluatefull2479canonicalprefixfile, parameterizedcores/depth; persistent1threadEdaxworkerscontiguousDFS chunks/undo+suffix replay/orderedstitch. No culling/extension/workflow. Firstuser-runcores4/level10target20–40s(unmeasured); hosted38laterafterreview. Task docs/edax-evaluation-task.md.
+
+- T075deliveredandstubcheckspassedperOpenCode; primaryreviewcaught0.25squietwaitperprompt (~155sminimumfor2479hintprompts/4workersplusnavigation). T075anarrowfixdispatchedbeforeuser-run. Mode3correction accepted: originaltaskmode0wouldautoplayWhite. NoactualEdaxbatchyet.
+
+- T075acomplete: quiet0.25spromptwaitremoved; terminalbare>ornewline>predicate. OpenCodereportssplitpipechecks0.050/0.100secondsandparse/stub/syntaxpass; noEdaxexecution. Useractualcores4/depth10runpending.
+
+- T076authorized: evaluatorearlyfeedback10/12.5/15minutes, perworkerETA,total>5hthreeconsecutivechecks→stop;5helapsedcap;retaincompletedpartialanalyses,noautomaticdepthchange. Task docs/edax-runtime-limit-task.md. LocalLunaoutputcheckpassed docs/edax-local-results.md. NohostedEdaxworkflow/runyet.
+
+- T076completeperOpenCode: earlyperworkerchecks/threebreachesstop/hardcap/atomicpartials/summaries;syntheticpass,noEdaxrun. Primaryreviewcompleted. T077hostedworkflowtaskprepared; primarycopiedcanonicalinputandvalid84bytestartupbook to data/opening-book/. Nojob/commit/push yet.
+
+- T077complete: manual .github/workflows/edax-book.yml plus docs/edax-hosted-handoff.md. Primarysourceinspectionconfirmsretainedinput/startupbook/pinnedEdax/4workers38/defaultETA+hardcap/alwaysartifactuploads. OpenCodestaticchecksreportedpassed;nohostedruntimeyet. Requiredworkflow/evaluator/dataassets stilluntracked; explicitcommit/push/dispatchapprovalrequestedbeforelaunch.
+
+- T078userselectsexactterminalendgameminimaxinPythoncanonicalbot, configurableCOUNT_LEFT/default0; proposedactivationempty<=cutoff,terminalWDLobjective/noNNleaves, deterministicbestwithfirstties. OpenCodetask docs/nn-endgame-task.md. Laterzeroequivalenceand8or10vs0user-run; noevaluation/traininglaunch. IDchangesaffectrigRNGseeds; equivalenceusesmatchedRNGstreams.
+
+- T078complete: canonicalNN005-R2-T0.05-C0 terminalnegamax/alphabeta/forcedpasses,COUNT_LEFTdefault0/<=activation. OpenCodereportsfocusedreference/bypass/settingscheckspassed; primarysourceinspectiondone,noactualgames. Lunauser-runonegameC0equivalencehelperdispatched, compareNN004sourcefrom07ed0aevsNN005withsamecheckpoint/explicitper-seatRNGstreams; no8/10matchyet.
+
+- User-authorized level-34/four-worker Edax retry committed/pushed a18b453 and dispatched https://github.com/pajh/othello/actions/runs/37027471923; observed in_progress. Same retained 2479 prefixes, checks at 10/12.5/15 minutes, five-hour estimate/hard limits. Results pending; no automatic depth reduction or book adoption.
+
+- User-run NN C0 equivalence passed: seed97001/models/best.pt, NN-004-R2-T0.05 versus NN-005-R2-T0.05-C0, 61 plies, 61 stateful and 61 greedy comparisons with matched RNG streams; terminal White41–23. This establishes unchanged choices/RNG on this one game with solver disabled; C8/C10 strength comparisons remain unrun.
+
+- T079 authorized: disposable C6/C8/C10 snapshots of canonical NN005 and existing-runner commands for 100-game strength/runtime comparisons, C0 baseline and optional both-seat C8 throughput. Same selected weights/R2/T0.05; no games/jobs/training launched. Scope docs/nn-cutoff-comparison-task.md; OpenCode implementation delegation.
+
+- T079 complete: disposable NN005 C6/C8/C10 snapshots and docs/nn-cutoff-comparison-handoff.md delivered. OpenCode reports py_compile/diff checks passed; primary reviewed C8 diff and existing-runner commands. All use required checkpoint environment, unchanged R2/T0.05. C0 equivalence passed earlier; cutoff strength/runtime batches and both-seat self-play timing remain user-run/unrun.
+
+- User completed C8-versus-C0 comparison: same models/best.pt (selected Generation010),100games,seed98008,fourworkers,alternatingcolours; C8 won65–35,0draws/forfeits, user shell walltime8.33s. Raw runs/nn-c8-vs-c0/run-7b28c26eeab344618124900f8acce5b8/. C0/C0 baseline also saved:100normal,44/2/54,seed98000,raw runs/nn-c0-vs-c0/run-c66a971b32c54887ae8b524d93e2c591/; summary has no elapsed field,baseline walltime not supplied here,so slowdown ratio unquantified. C8/C8 throughput and C10 comparisons remain unrun; no canonical cutoff change/training launch.
+
+- User-run both-seat C8 throughput:100games,seed98008,fourworkers,models/best.pt,R2/T0.05;100normal,0forfeits,56/3/41 seat outcomes,wall8.26s,userCPU31.65s. Raw runs/nn-c8-vs-c8/run-6ae57e99b2e54bddae1142d960eb1ff2/. Simple same-machine 5000-game extrapolation8.26*50=413s(~6m53s), includes repeated startup in extrapolation and is approximate. Similar walltime to single-seat C8 batch8.33s; baseline slowdown percentage unknown. No training/hosted job or cutoff adoption authorized by this result alone.
+
+- User explicitly selected Generation012 best as new models/best.pt and canonical C8 for hosted5000 self-play/training plus1000 C8candidate-vs-C8exactparent evaluation. Commit040e249 pushed; run https://github.com/pajh/othello/actions/runs/37030679887 observed in_progress,collectionseed90009/evaluationseed190009/workers4. Canonical nowNN-006-R2-T0.05-C8; conversion8symmetries,continuedweights/freshAdam/patience1 unchanged. Edax level34 run37027471923 concurrently active. Results pending; Cdeployment weights unchanged. Earlier comparison commands using canonical as C0 are now historical because canonical is C8; use retained revision for future C0 comparisons.
+
+- Generation015 hosted37030679887 failed AFTER all5000 games completed normally0forfeits (2429/130/2441,~503s collection). Observed error: helper hardcoded BOT_ID NN004R2T0.05 rejects actualNN006R2T0.05C8; conversion/training/evaluation skipped. Artifact upload succeeded; retrieval runs/github-c8-first/. T081 narrow helper-ID fix delegated; raw provenance incorrectly embeds old ID and must remain honest, no candidate trained.
+
+- T081 verified one-line collector BOT_ID fix, committed/pushed aa173e0. Generation015 retry https://github.com/pajh/othello/actions/runs/37032114143 observed in_progress; same selectedGeneration012best/C8/5000games/seed90009/workers4 and1000evalseed190009, other training settings unchanged. Fresh collection rerun; initialfailedartifact preserved runs/github-c8-first/. No candidate/results yet.
+
+- T082 user-requested identity flow correction authorized: canonical get_id() supplies new collection provenance; saved metadata/provenance supplies reviews/reports; workflow evaluation report reads actual IDs instead of duplicating hardcoded names. Keep consistency checks and distinct checkpoint provenance. Bounded OpenCode task docs/nn-identity-flow-task.md; active hosted retry unaffected.
+
+- T082 complete/reviewed: collector now reads canonical get_id() after checkpoint setup for launch provenance, retained metadata IDs for review/reports, requires same-seat IDs and provenance agreement. Hosted eval summary parses recorded IDs; no duplicated fixed ID remains. OpenCode reports synthetic identity/mismatch/history/parser/help/syntax checks passed; primary diff inspection done. Changes local/uncommitted, active37032114143 uses its prior checked-out revision; no games/jobs launched by T082.
+
+- Generation015 retry37032114143 succeeded; downloaded runs/github-c8-retry/.5000normal/0forfeits,2429/130/2441,collection510.154s. Candidate bestepoch1MSE0.176499 vs loadedparent0.179488 on samevalidation split;2epochs/patience1,training29.581s.1000 C8candidate-vs-C8Generation012parent seed190009:560wins/37draws/403losses,57.85%score,0forfeits. Newcandidate runs/github-c8-retry/checkpoints/github-candidate/best.pt; exactparent runs/github-c8-retry/runs/github-selfplay/parent.pt. Evidence supports improved weights underC8; C0/greedy/Cdeployment improvement not measured. No promotion/export/newjob.
+
+- User-requested latest Generation015 C model rebuild completed via Luna existing tooling. Prior assets archived runs/c-generation010/. New submission runs/c-submission/submission.c87775chars (12225headroom),SHA256a4a028ad702c67e39410877448de636d878d3afe0a6fa5c33d7c7749c07979e6; GCC buildclean,embedded quantized reconstructionbyteidenticalPASS,leakdetectiondisabledforpriorptracelimitation. QuantizationMAE0.00142061329/max0.02498734. One seed96003smokevsrandom normal0forfeits/Cwin runs/c-generation015-smoke/run-7d975b742cbc469891482431db13e812. Csource greedy unchanged/no minimax/book yet; no checkpointpromotion/commit/push/CGsubmission. Handoff docs/c-generation015-handoff.md.
+
+- T083 user-authorized isolated Z85 encoding trial: existing C probe hashes currentBase64 and trialZ85 decodedpayload/FP32blob; binarylength/hash/byteidentity successcriterion; compile trialsinglefile and measure complete source net savings. Preserve productionBase64/currentsubmission; no model change, games, jobs or promotion. Task docs/z85-encoding-test-task.md delegated OpenCode.
+
+- T083 isolatedZ85trial completed: decodedtruepayload50561bytes and expandedFP32blob198148bytes identical to Base64/reference (CpayloadCRC bce3a986,decodedCRC2205bf07,cmpPASS). Trialcomplete source runs/c-z85-test/z85/submission.c83574chars vs87775baseline,net4201saved,16426headroom (6426after hypothetical10000charbook). OpenCode reports cleancompile andASan/UBSan; primaryhandoff/trigraphfixreview done. Real C11trigraph??!caught in Z85literal; generator splits adjacent literals betweenquestionmarks to preservebytes (7char overheadincluded). ProductionBase64paths unchanged; trialnotadopted,no game/modelchange/commit/push. Handoff docs/z85-encoding-test-handoff.md.
+
+- T084 user-authorized Z85 productionpromotion/removalofactiveBase64modelencoder/decoder plus read-only whitespace/privateidentifier savingsestimate; OpenCode boundedtask docs/z85-promotion-task.md. PreserveBase64archives/modelweights; no minimification/renaming or jobs/commit/push.
+
+- T084 reported complete: canonicalZ85codec replacesBase64,tests/pass/smoke; regeneratedsubmission83566chars(net4209vsBase64),read-onlywhitespaceestimate5282chars. ArchivedBase64 runs/c-base64-final/. No cleanup applied/commit/push. T085 user explicitly requests Luna implementation: attributedEdaxportable scalar legalmovegeneratoravailableinCbot,maskverification/scrunch/exactsize; nosearch/flipper/choicechange.
+
+- T085 Luna completed attributedEdax4.6 scalar one-stageparallelprefix legalmoves: staticinline u64valid_moves(u64mine,u64theirs),typedefuint64_tu64; C VERSION004. No NNchoice/search/flipperchanges. Enginecomparison4004maskPASS (explicitedges,longrays,nomoves +32seededtrajectories/1999positionsbothplayers). makebot/exactsubmissionGCCclean; submission84767chars vs83566(+1201),headroom15233;5233afterhypothetical10000book. Priorretained runs/c-bitboard-moves/prior-submission.c. Handoff docs/c-bitboard-moves-handoff.md; no game/CGsubmit/commit/push. Primarysource/sizeinspection done.
+
+- User-requested flipperinvestigation complete docs/c-flipper-investigation.md. EdaxAVX2ppseq7791comment-strippedchars(includes5777masktablechars),BMI2 11301plussharedMASK_X; other scalarfastvariants52436–137239chars. Tinyflip_slowreferencefunction670charsbeforeadaptation. Recommend table-free scalarpropagationestimated1–2KB,measurebeforeSIMD; no implementation/benchmark/CPU capabilityclaim. Currentafter10Kbook budget5233beforewhitespacecleanup.
+
+- T086 user selects compactscalarbitboardflipper,explicitLunainsertion/enginecomparison; futureOpenCodenegamax and user-runcutoffmeasurements separate. Allowed c/bot.c+docs/c-scalar-flipper-handoff.md andgeneratedartifacts. Userprefersendgameclosingoverbookspacepriority; no search/strategyintegration/game/leaguegainclaim yet.
+
+- T086 Luna completed portabletable-free scalarcoordinate-ray flip_discs(u64mine,u64theirs,intsquare),returnsflips/noboardmutation;C VERSION005,chooserunchanged. Engineflipmask/resultboardchecks31172PASS across32seededtrajectories+targetededge/corner/diagonal6disc/multiraycases. makebot/exactsinglefileGCCclean. Submission85648chars(+881),headroom14352;4352afterhypothetical10000bookbeforewhitespacecleanup. Priorarchive runs/c-scalar-flipper/prior-submission.c; handoff docs/c-scalar-flipper-handoff.md. No search/game/throughputbenchmark/CGsubmit/commit/push; speedunknown. Primarysize/sourceinspection done.
+
+- T087 authorized2026-10-03: commit/push prepared work, continue Generation015best via hosted5000/1000 round seed90010/190010 with unchangedC8 training settings. Dispatch/results pending.
+- T088 authorized: OpenCode C terminal-only negamax, save NN fallback and respect remaining turn time; Luna focused review. Activation cutoff pending user selection. No opening-book review/integration or minification in this chunk.

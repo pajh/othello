@@ -1,28 +1,31 @@
 /* ==========================================================================
- * Reconstruct model parameters from the embedded Base64 codebook payload.
+ * Reconstruct model parameters from the embedded Z85 codebook payload.
  *
  * Header-only, standard C11 only. Includes c/nn.h for the Model type and the
  * generated runs/c-model-embedded/model.h for the payload: its lengths, its two
- * CRC32 checksums and the Base64 text itself.
+ * CRC32 checksums and the Z85 text itself.
  *
  * What it does
  * ------------
- * load_embedded_model() decodes model_base64 into one startup allocation,
- * checks the encoded and decoded lengths and the payload CRC32, then expands
- * the codebook and its uint8 indices into the model's parameter blob and checks
- * that reconstruction's CRC32. Both checksums are the standard IEEE CRC32 as
+ * load_embedded_model() decodes model_z85 into one startup allocation, checks
+ * the encoded length, the true/padded payload sizes, that the known trailing
+ * padding bytes are zero and the payload CRC32, then expands the codebook and
+ * its uint8 indices into the model's parameter blob and checks that
+ * reconstruction's CRC32. Both checksums are the standard IEEE CRC32 as
  * Python's zlib.crc32 computes it: polynomial 0xedb88320, initial and final
  * XOR 0xffffffff.
  *
- * The payload is the codebook first (1024 bytes = 256 little-endian float32
- * centers) and then the indices (49537 bytes, one per parameter, in original
- * order). There is no compression: the Base64 is decoded as written, padding
- * included, and MODEL_BASE64_LENGTH characters are read, excluding the NUL.
+ * The true payload is the codebook first (1024 bytes = 256 little-endian
+ * float32 centers) and then the indices (49537 bytes, one per parameter, in
+ * original order): 50561 bytes. Three zero bytes are appended to reach the
+ * multiple of 4 that Z85 needs. The payload CRC32 is over the 50561 true
+ * bytes, not the padding. There is no compression: the Z85 text is decoded as
+ * written and the known padding is discarded after being checked.
  *
  * Lifetime
  * --------
  * One call at startup, before setup(), which stays the caller's responsibility:
- * the loader allocates the packed payload and hands it back through
+ * the loader allocates the padded payload and hands it back through
  * *payload_storage so production code can retain it for the process lifetime.
  * There is no teardown function here, and no per-parameter allocation: the
  * packed buffer is the only allocation, made once. A test can free what it
@@ -68,89 +71,69 @@ static inline uint32_t model_crc32(const unsigned char *data, size_t length)
     return crc ^ 0xffffffffu;
 }
 
-/* Standard Base64 alphabet. Returns the 6-bit value of a character, or -1 if
- * it is not part of the alphabet ('=' padding is handled by the caller). */
-static inline int model_base64_value(char character)
+/* The exact standard Z85 alphabet (zeroMQ RFC 32). Returns the 0..84 value of
+ * a character, or -1 if it is not part of the alphabet. */
+static inline int model_z85_value(char character)
 {
-    if (character >= 'A' && character <= 'Z') {
-        return character - 'A';
-    }
-    if (character >= 'a' && character <= 'z') {
-        return character - 'a' + 26;
-    }
-    if (character >= '0' && character <= '9') {
-        return character - '0' + 52;
-    }
-    if (character == '+') {
-        return 62;
-    }
-    if (character == '/') {
-        return 63;
+    static const char alphabet[86] =
+        "0123456789"
+        "abcdefghijklmnopqrstuvwxyz"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        ".-:+=^!/*?&<>()[]{}@%$#";
+    int index;
+
+    for (index = 0; index < 85; ++index) {
+        if (alphabet[index] == character) {
+            return index;
+        }
     }
     return -1;
 }
 
-/* Decode exactly MODEL_BASE64_LENGTH characters of model_base64 into
- * *out_bytes bytes. Returns 1 on success.
+/* Decode exactly MODEL_Z85_LENGTH characters of model_z85 into *out_bytes
+ * bytes, where out_length is the padded length (a multiple of 4). Returns 1 on
+ * success.
  *
- * Exactly three characters decode to two bytes, and one trailing '=' group
- * encodes a final single byte, which is how the standard padding works: any
- * other length is rejected rather than guessed at. */
-static inline int model_base64_decode(const char *encoded, size_t encoded_length,
-                                      unsigned char *out_bytes,
-                                      size_t out_length)
+ * Each group of five characters is one big-endian 32-bit value written base 85
+ * most significant first. The accumulator is a uint32_t and is rejected as
+ * soon as it would exceed 0xffffffff / 85, which also guarantees no group can
+ * silently wrap and be accepted. Padding is not part of Z85 text: the decoder
+ * produces exactly the padded byte count and the caller then checks that only
+ * the known trailing MODEL_PAYLOAD_PADDED_BYTES - MODEL_PAYLOAD_BYTES bytes are
+ * zero. */
+static inline int model_z85_decode(const char *encoded, size_t encoded_length,
+                                   unsigned char *out_bytes,
+                                   size_t out_length)
 {
     size_t i;
     size_t out = 0;
 
-    if (encoded_length % 4u != 0u) {
+    if (encoded_length % 5u != 0u) {
         return 0;
     }
-    for (i = 0; i < encoded_length; i += 4) {
-        int value[4];
+    for (i = 0; i < encoded_length; i += 5) {
+        uint32_t value = 0;
         int slot;
-        size_t produced = 3;
 
-        for (slot = 0; slot < 4; ++slot) {
-            char character = encoded[i + (size_t)slot];
-            if (character == '=') {
-                /* Padding is only legal in the last group, and only as the
-                 * final one or two characters. */
-                if (i + 4u != encoded_length || slot < 2) {
-                    return 0;
-                }
-                value[slot] = 0;
-            } else {
-                value[slot] = model_base64_value(character);
-                if (value[slot] < 0) {
-                    return 0;
-                }
+        for (slot = 0; slot < 5; ++slot) {
+            int digit = model_z85_value(encoded[i + (size_t)slot]);
+            if (digit < 0) {
+                return 0;
             }
+            /* Reject before multiplying so no invalid group can wrap around. */
+            if (value > (UINT32_C(0xffffffff) / 85u)) {
+                return 0;
+            }
+            value = value * 85u + (uint32_t)digit;
         }
-        /* Three bytes encode to four characters with no padding; two bytes
-         * encode to three characters plus one '='; one byte encodes to two
-         * characters plus '=='. So the first '=' position fixes the count. */
-        if (encoded[i + 2] == '=') {
-            produced = 1;
-        } else if (encoded[i + 3] == '=') {
-            produced = 2;
-        }
-
-        if (out + produced > out_length) {
+        if (out + 4u > out_length) {
             return 0;
         }
-        if (produced >= 1) {
-            out_bytes[out] = (unsigned char)((value[0] << 2) | (value[1] >> 4));
-            out += 1;
-        }
-        if (produced >= 2) {
-            out_bytes[out] = (unsigned char)((value[1] << 4) | (value[2] >> 2));
-            out += 1;
-        }
-        if (produced >= 3) {
-            out_bytes[out] = (unsigned char)((value[2] << 6) | value[3]);
-            out += 1;
-        }
+        out_bytes[out] = (unsigned char)(value >> 24);
+        out_bytes[out + 1] = (unsigned char)(value >> 16);
+        out_bytes[out + 2] = (unsigned char)(value >> 8);
+        out_bytes[out + 3] = (unsigned char)value;
+        out += 4;
     }
     return out == out_length;
 }
@@ -158,9 +141,9 @@ static inline int model_base64_decode(const char *encoded, size_t encoded_length
 /* Load the embedded payload into *model* and return 1, or return 0 after
  * explaining the problem on stderr.
  *
- * *payload_storage receives the packed bytes, which the caller owns from then
+ * *payload_storage receives the padded bytes, which the caller owns from then
  * on: a bot keeps it for the process lifetime, a test frees it. Both CRCs and
- * both lengths are checked before the parameters are written, so a model is
+ * the lengths are checked before the parameters are written, so a model is
  * never left half-populated by a corrupt payload. */
 static inline int load_embedded_model(Model *model, unsigned char **payload_storage)
 {
@@ -173,24 +156,46 @@ static inline int load_embedded_model(Model *model, unsigned char **payload_stor
         fprintf(stderr, "model_decode: null argument\n");
         return 0;
     }
-    if (MODEL_BASE64_LENGTH % 4u != 0u) {
-        fprintf(stderr, "model_decode: Base64 length %u is not a multiple of 4\n",
-                (unsigned)MODEL_BASE64_LENGTH);
+    if (MODEL_Z85_LENGTH % 5u != 0u) {
+        fprintf(stderr, "model_decode: Z85 length %u is not a multiple of 5\n",
+                (unsigned)MODEL_Z85_LENGTH);
+        return 0;
+    }
+    if (MODEL_PAYLOAD_PADDED_BYTES % 4u != 0u) {
+        fprintf(stderr, "model_decode: padded payload %u is not a multiple of 4\n",
+                (unsigned)MODEL_PAYLOAD_PADDED_BYTES);
+        return 0;
+    }
+    if (MODEL_PAYLOAD_PADDED_BYTES - MODEL_PAYLOAD_BYTES
+        > MODEL_PAYLOAD_PADDED_BYTES) {
+        fprintf(stderr, "model_decode: inconsistent payload/padded lengths\n");
         return 0;
     }
 
-    packed = (unsigned char *)malloc(MODEL_PAYLOAD_BYTES);
+    packed = (unsigned char *)malloc(MODEL_PAYLOAD_PADDED_BYTES);
     if (packed == NULL) {
         fprintf(stderr, "model_decode: could not allocate %u payload bytes\n",
-                (unsigned)MODEL_PAYLOAD_BYTES);
+                (unsigned)MODEL_PAYLOAD_PADDED_BYTES);
         return 0;
     }
-    if (!model_base64_decode(model_base64, MODEL_BASE64_LENGTH, packed,
-                             MODEL_PAYLOAD_BYTES)) {
-        fprintf(stderr, "model_decode: Base64 text does not decode to %u bytes\n",
-                (unsigned)MODEL_PAYLOAD_BYTES);
+    if (!model_z85_decode(model_z85, MODEL_Z85_LENGTH, packed,
+                          MODEL_PAYLOAD_PADDED_BYTES)) {
+        fprintf(stderr, "model_decode: Z85 text does not decode to %u bytes\n",
+                (unsigned)MODEL_PAYLOAD_PADDED_BYTES);
         free(packed);
         return 0;
+    }
+
+    /* Check the known trailing padding is exactly zero before trusting the
+     * true payload that precedes it. */
+    for (index = MODEL_PAYLOAD_BYTES; index < MODEL_PAYLOAD_PADDED_BYTES;
+         ++index) {
+        if (packed[index] != 0u) {
+            fprintf(stderr, "model_decode: padding byte %lu is %u, expected 0\n",
+                    (unsigned long)index, (unsigned)packed[index]);
+            free(packed);
+            return 0;
+        }
     }
 
     payload_crc = model_crc32(packed, MODEL_PAYLOAD_BYTES);
